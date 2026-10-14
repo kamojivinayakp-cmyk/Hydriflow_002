@@ -1,0 +1,2464 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0284c7">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="HydroFlow">
+    <link id="dynamic-manifest-link" rel="manifest" href="./manifest.json">
+    <link id="dynamic-apple-icon" rel="apple-touch-icon" href="">
+    <title>HydroFlow - Daily Water Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        aqua: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                        },
+                        ocean: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        /* Ensure hidden modals never intercept pointer events */
+        .modal-backdrop {
+            display: none;
+            pointer-events: none;
+        }
+        .modal-backdrop.is-open {
+            display: flex;
+            pointer-events: auto;
+        }
+
+        /* Wave Progress Orb */
+        .wave-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 9999px;
+            transform: translateZ(0);
+        }
+
+        .wave {
+            position: absolute;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(14, 165, 233, 0.78);
+            border-radius: 40%;
+            animation: drift 7s infinite linear;
+            transition: top 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .wave-back {
+            position: absolute;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(56, 189, 248, 0.48);
+            border-radius: 43%;
+            animation: drift 10s infinite linear reverse;
+            transition: top 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .dark .wave {
+            background: rgba(2, 132, 199, 0.85);
+        }
+        .dark .wave-back {
+            background: rgba(14, 165, 233, 0.5);
+        }
+
+        @keyframes drift {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Rising Bubbles inside Orb */
+        .bubble {
+            position: absolute;
+            bottom: -15px;
+            background: rgba(255, 255, 255, 0.45);
+            border-radius: 9999px;
+            animation: rise 4s infinite ease-in;
+            pointer-events: none;
+        }
+
+        @keyframes rise {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            40% { opacity: 0.7; }
+            100% { transform: translateY(-220px) scale(1.3); opacity: 0; }
+        }
+
+        /* Scrollbar utility */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Button Press Feedback */
+        .btn-press {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.14s ease, box-shadow 0.14s ease;
+        }
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+
+        /* Interactive Orb Tap & Ripple Animations */
+        .orb-interactive {
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .orb-interactive:active {
+            transform: scale(0.96);
+        }
+        .orb-surge {
+            animation: orbBounce 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes orbBounce {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+
+        .tap-ripple {
+            position: absolute;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(56,189,248,0.45) 60%, transparent 100%);
+            border: 1.5px solid rgba(255, 255, 255, 0.9);
+            transform: translate(-50%, -50%) scale(0);
+            pointer-events: none;
+            z-index: 25;
+            animation: rippleExpand 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes rippleExpand {
+            0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0.95; }
+            100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+        }
+
+        .floating-sip-badge {
+            position: absolute;
+            pointer-events: none;
+            z-index: 35;
+            transform: translate(-50%, -50%);
+            animation: floatUpFade 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes floatUpFade {
+            0% { opacity: 0; transform: translate(-50%, 0px) scale(0.75); }
+            20% { opacity: 1; transform: translate(-50%, -14px) scale(1.08); }
+            100% { opacity: 0; transform: translate(-50%, -68px) scale(0.95); }
+        }
+
+        @keyframes gentleFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+        .float-pill {
+            animation: gentleFloat 2.8s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex justify-center items-start sm:py-6 select-none transition-colors duration-300">
+
+    <!-- Mobile App Shell Container -->
+    <div class="w-full max-w-md bg-gradient-to-b from-ocean-50/90 via-white to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 min-h-screen sm:min-h-[860px] sm:rounded-[2.5rem] shadow-2xl sm:border-[6px] border-white dark:border-slate-800 flex flex-col justify-between relative overflow-hidden">
+
+        <!-- Ambient Background Glows (pointer-events-none so they never block taps) -->
+        <div class="absolute -top-24 -left-24 w-64 h-64 bg-ocean-300/30 dark:bg-ocean-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -top-16 -right-20 w-56 h-56 bg-aqua-300/25 dark:bg-aqua-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Toast Feedback Banner -->
+        <div id="toast" class="fixed sm:absolute top-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 -translate-y-4 transition-all duration-300 bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-semibold backdrop-blur-md">
+            <span id="toast-icon" class="text-base">💧</span>
+            <span id="toast-text">Added 250ml of water!</span>
+        </div>
+
+        <!-- TOP HEADER -->
+        <header class="px-5 pt-5 pb-2 flex items-center justify-between z-20 relative">
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-ocean-500 animate-pulse"></span>
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-ocean-600 dark:text-ocean-400">HydroFlow</span>
+                </div>
+                <h1 id="header-day-title" class="text-xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5">
+                    Today's Hydration
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <!-- Streak Pill -->
+                <button type="button" onclick="window.appSwitchTab('analytics')" class="btn-press flex items-center gap-1 bg-amber-500/15 dark:bg-amber-400/15 border border-amber-500/30 px-2.5 py-1.5 rounded-2xl shadow-sm" title="Current Daily Streak">
+                    <span class="text-sm leading-none">🔥</span>
+                    <span id="streak-count" class="font-display font-extrabold text-xs text-amber-600 dark:text-amber-400">0</span>
+                    <span class="text-[10px] font-bold text-amber-600/80 dark:text-amber-400/80">d</span>
+                </button>
+
+                <!-- Install PWA / Android Guide Button -->
+                <button type="button" onclick="window.appOpenPwaModal()" id="header-install-btn" class="btn-press flex items-center gap-1 bg-ocean-500/15 dark:bg-ocean-400/15 border border-ocean-500/30 text-ocean-700 dark:text-ocean-300 px-2.5 py-1.5 rounded-2xl shadow-sm text-[11px] font-extrabold" title="Install App in Chrome & Download Files">
+                    <span>📲</span>
+                    <span class="hidden xs:inline sm:inline">Install</span>
+                </button>
+
+                <!-- Direct Download HTML Button -->
+                <button type="button" onclick="window.appDownloadSourceFile('index.html')" class="btn-press flex items-center gap-1 bg-emerald-500/15 dark:bg-emerald-400/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 px-2.5 py-1.5 rounded-2xl shadow-sm text-[11px] font-extrabold" title="Download index.html file directly">
+                    <span>⬇️</span>
+                    <span class="hidden sm:inline">HTML</span>
+                </button>
+
+                <!-- Reset All Data Header Button -->
+                <button type="button" onclick="window.appOpenResetModal()" class="btn-press p-2.5 rounded-2xl bg-rose-50/90 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-800/70 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 shadow-sm" aria-label="Reset All Data" title="Reset All Data">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+
+                <!-- Reminder Settings Bell Button -->
+                <button type="button" onclick="window.appOpenReminderModal()" class="btn-press relative p-2.5 rounded-2xl bg-white/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 shadow-sm" aria-label="Hydration Reminders" title="Inactivity Reminder Settings">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span id="reminder-active-dot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-800"></span>
+                </button>
+
+                <!-- Sound Toggle Button -->
+                <button type="button" onclick="window.appToggleSound()" class="btn-press p-2.5 rounded-2xl bg-white/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 shadow-sm" aria-label="Toggle Sound" title="Toggle Sound Effects">
+                    <svg id="sound-on-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                    <svg id="sound-off-icon" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                </button>
+
+                <!-- Theme Toggle Button -->
+                <button type="button" onclick="window.appToggleTheme()" class="btn-press p-2.5 rounded-2xl bg-white/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 shadow-sm" aria-label="Toggle Dark Mode" title="Toggle Light/Dark Mode">
+                    <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- INTERACTIVE 7-DAY STREAK STRIP -->
+        <section class="px-5 py-1.5 z-20 relative">
+            <div class="bg-white/85 dark:bg-slate-800/80 backdrop-blur-md p-2.5 rounded-3xl border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                <div class="flex items-center justify-between px-1 mb-1.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Tap any day to inspect or log</span>
+                    <button type="button" onclick="window.appSelectDay(window.appGetTodayIndex())" id="jump-today-btn" class="hidden text-[11px] font-extrabold text-ocean-600 dark:text-ocean-400 hover:underline">
+                        Back to Today →
+                    </button>
+                </div>
+                <div id="week-selector-row" class="grid grid-cols-7 gap-1.5"></div>
+            </div>
+        </section>
+
+        <!-- IN-APP DEHYDRATION / MISSED DRINKING ALERT BANNER -->
+        <div id="inactivity-alert-banner" class="hidden mx-5 my-1.5 p-3.5 rounded-3xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-xl shadow-orange-500/25 z-30 relative">
+            <div class="flex items-start justify-between gap-2.5">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl shrink-0 animate-bounce">
+                        ⏰
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider bg-white/25 px-2 py-0.5 rounded-full">Hydration Alert</span>
+                            <span id="alert-elapsed-badge" class="text-[10px] font-bold text-amber-100">60m+ idle</span>
+                        </div>
+                        <h4 class="text-sm font-display font-extrabold mt-0.5">Time for a Water Break!</h4>
+                        <p id="alert-banner-desc" class="text-[11px] text-white/95 leading-snug mt-0.5">
+                            You haven't logged a drink recently. Take a quick sip now!
+                        </p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.appDismissInactivityAlert()" class="btn-press text-white/85 hover:text-white px-2 py-1 text-xs font-bold" aria-label="Dismiss Alert">✕</button>
+            </div>
+            <div class="grid grid-cols-3 gap-2 mt-3 pt-2.5 border-t border-white/20">
+                <button type="button" onclick="window.appResolveAlertWithDrink(20, 'Quick Sip', '💧')" class="btn-press py-2 px-2 rounded-xl bg-white text-orange-600 font-display font-extrabold text-xs shadow-sm flex items-center justify-center gap-1">
+                    <span>💧</span><span>+20ml Sip</span>
+                </button>
+                <button type="button" onclick="window.appResolveAlertWithDrink(250, 'Glass', '🥛')" class="btn-press py-2 px-2 rounded-xl bg-white/25 hover:bg-white/35 text-white font-display font-bold text-xs flex items-center justify-center gap-1">
+                    <span>🥛</span><span>+250ml</span>
+                </button>
+                <button type="button" onclick="window.appSnoozeInactivityAlert(15)" class="btn-press py-2 px-2 rounded-xl bg-black/25 hover:bg-black/35 text-white font-semibold text-xs flex items-center justify-center gap-1">
+                    <span>💤</span><span>Snooze 15m</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN SCROLLABLE BODY -->
+        <main class="flex-1 overflow-y-auto no-scrollbar px-5 py-2 pb-24 space-y-5 z-10 relative">
+
+            <!-- ==========================================
+                 VIEW 1: DASHBOARD (Orb, Quick Add, Reminder, Hourly & Weekly Preview)
+                 ========================================== -->
+            <div id="view-dashboard" class="space-y-5">
+
+                <!-- ANIMATED WATER ORB SECTION -->
+                <div class="flex flex-col items-center justify-center pt-1">
+
+                    <!-- Goal & Live Inactivity Pill Row (Outside Orb so they never conflict with orb tap) -->
+                    <div class="flex flex-wrap items-center justify-center gap-2 mb-3">
+                        <button type="button" onclick="window.appOpenGoalModal()" class="btn-press inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-ocean-50 dark:hover:bg-slate-700 px-3 py-1.5 rounded-full shadow-sm border border-slate-200/80 dark:border-slate-700">
+                            <span>🎯 Goal: <strong id="orb-goal" class="text-ocean-600 dark:text-ocean-400">2500</strong>ml</span>
+                            <span class="text-[10px] font-bold text-ocean-600 dark:text-ocean-400 underline ml-0.5">Edit</span>
+                        </button>
+
+                        <button type="button" onclick="window.appOpenReminderModal()" id="live-sip-timer-pill" class="btn-press inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-ocean-50 dark:hover:bg-slate-700 px-3 py-1.5 rounded-full shadow-sm border border-slate-200/80 dark:border-slate-700">
+                            <span id="timer-pill-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span id="live-sip-timer-text">Last sip: just now</span>
+                        </button>
+                    </div>
+
+                    <!-- Interactive Water Orb (+20ml Quick Sip on Click/Tap) -->
+                    <div id="orb-outer-shell" class="relative w-56 h-56 rounded-full p-2 bg-gradient-to-b from-ocean-200/75 to-ocean-400/45 dark:from-slate-800 dark:to-ocean-900/50 shadow-xl">
+                        <div id="water-orb-surface" onclick="window.appHandleOrbSipTap(event)" role="button" tabindex="0" aria-label="Tap orb to log a 20ml quick sip of water" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.appHandleOrbSipTap(event);}" class="orb-interactive wave-container w-full h-full bg-ocean-50/95 dark:bg-slate-900 flex flex-col items-center justify-center relative border-4 border-white dark:border-slate-800 shadow-inner group">
+
+                            <!-- Animated Liquid Waves -->
+                            <div id="wave-back" class="wave-back" style="top: 100%;"></div>
+                            <div id="wave-front" class="wave" style="top: 100%;"></div>
+
+                            <!-- Decorative Rising Bubbles -->
+                            <div class="bubble w-2.5 h-2.5 left-1/4" style="animation-delay: 0.4s;"></div>
+                            <div class="bubble w-3.5 h-3.5 left-1/2" style="animation-delay: 1.7s;"></div>
+                            <div class="bubble w-2 h-2 left-2/3" style="animation-delay: 2.8s;"></div>
+
+                            <!-- Dynamic Ripple & Floating +20ml FX Layer -->
+                            <div id="orb-fx-layer" class="absolute inset-0 pointer-events-none overflow-hidden rounded-full z-20"></div>
+
+                            <!-- Central Readout -->
+                            <div class="relative z-10 text-center px-3 pointer-events-none">
+                                <span id="orb-percentage" class="inline-block text-xs font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-white/90 dark:bg-slate-900/90 text-ocean-700 dark:text-ocean-300 shadow-sm mb-1">
+                                    0%
+                                </span>
+                                <div class="flex items-baseline justify-center">
+                                    <span id="orb-current" class="text-4xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white drop-shadow-sm">0</span>
+                                    <span class="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1">ml</span>
+                                </div>
+
+                                <!-- Floating Quick-Sip Prompt Inside Orb -->
+                                <div class="mt-2.5 float-pill inline-flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-1 rounded-full shadow-md border border-ocean-200 dark:border-ocean-700 group-hover:scale-105 transition-transform">
+                                    <span class="text-xs leading-none">💧</span>
+                                    <span class="text-[11px] font-extrabold text-ocean-700 dark:text-ocean-300 tracking-tight">Tap orb • +20ml sip</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sips Remaining Pill Indicator (Directly Below Orb) -->
+                    <div class="mt-3.5 flex flex-col items-center">
+                        <button type="button" onclick="window.appHandleOrbSipTap(event)" id="sips-remaining-pill" class="btn-press inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-slate-800/95 border border-ocean-200/90 dark:border-slate-700 shadow-sm hover:border-ocean-400 transition-all">
+                            <span id="sips-remaining-icon" class="text-sm leading-none">💧</span>
+                            <span id="sips-remaining-text" class="text-xs font-display font-extrabold text-slate-800 dark:text-slate-100">
+                                80 sips left to goal
+                            </span>
+                            <span id="sips-glasses-sub" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-ocean-50 dark:bg-slate-700 text-ocean-700 dark:text-ocean-300">
+                                ~6.4 glasses
+                            </span>
+                        </button>
+
+                        <!-- Dynamic Motivational Subtext -->
+                        <p id="status-message" class="mt-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 text-center">
+                            Tap the orb anytime for a quick 20ml sip, or log a full cup below!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- QUICK ADD BUTTONS -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Quick Log Intake</h2>
+                        <button type="button" onclick="window.appUndoLastEntry()" id="undo-btn" class="btn-press text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 flex items-center gap-1 transition disabled:opacity-30 disabled:pointer-events-none" disabled>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            <span>Undo last</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-2">
+                        <!-- +150ml -->
+                        <button type="button" onclick="window.appLogWater(150, 'Small Cup', '☕')" class="btn-press group flex flex-col items-center justify-center p-3 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 hover:border-ocean-400 shadow-sm">
+                            <span class="text-xl mb-1 group-hover:scale-110 transition-transform">☕</span>
+                            <span class="font-display font-extrabold text-sm text-slate-800 dark:text-white">+150</span>
+                            <span class="text-[10px] font-medium text-slate-400">ml cup</span>
+                        </button>
+
+                        <!-- +250ml -->
+                        <button type="button" onclick="window.appLogWater(250, 'Glass', '🥛')" class="btn-press group flex flex-col items-center justify-center p-3 rounded-2xl bg-ocean-50/90 dark:bg-ocean-950/50 border border-ocean-200 dark:border-ocean-800/80 hover:border-ocean-400 shadow-sm">
+                            <span class="text-xl mb-1 group-hover:scale-110 transition-transform">🥛</span>
+                            <span class="font-display font-extrabold text-sm text-ocean-700 dark:text-ocean-300">+250</span>
+                            <span class="text-[10px] font-medium text-ocean-600/80 dark:text-ocean-400/80">ml glass</span>
+                        </button>
+
+                        <!-- +500ml -->
+                        <button type="button" onclick="window.appLogWater(500, 'Bottle', '🍶')" class="btn-press group flex flex-col items-center justify-center p-3 rounded-2xl bg-aqua-50/90 dark:bg-teal-950/40 border border-aqua-200 dark:border-teal-800/70 hover:border-aqua-400 shadow-sm">
+                            <span class="text-xl mb-1 group-hover:scale-110 transition-transform">🍶</span>
+                            <span class="font-display font-extrabold text-sm text-teal-700 dark:text-teal-300">+500</span>
+                            <span class="text-[10px] font-medium text-teal-600/80 dark:text-teal-400/80">ml bottle</span>
+                        </button>
+
+                        <!-- Custom Modal -->
+                        <button type="button" onclick="window.appOpenCustomModal()" class="btn-press group flex flex-col items-center justify-center p-3 rounded-2xl bg-gradient-to-br from-ocean-500 to-ocean-600 text-white shadow-md shadow-ocean-500/20">
+                            <span class="text-xl mb-1 group-hover:rotate-90 transition-transform">➕</span>
+                            <span class="font-display font-extrabold text-sm">Custom</span>
+                            <span class="text-[10px] font-medium text-ocean-100">any ml</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SMART HYDRATION REMINDER & INACTIVITY CARD -->
+                <div class="bg-white dark:bg-slate-800/85 rounded-3xl p-4 border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-3">
+                            <div id="reminder-card-icon" class="w-10 h-10 rounded-2xl bg-ocean-50 dark:bg-slate-700/80 text-ocean-600 dark:text-ocean-300 flex items-center justify-center text-lg shrink-0">
+                                🔔
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-xs font-display font-bold text-slate-900 dark:text-white">Inactivity Hydration Alert</h3>
+                                    <span id="reminder-status-badge" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
+                                        Every 60m
+                                    </span>
+                                </div>
+                                <p id="reminder-countdown-subtext" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    Last sip: just now • Next reminder in 60m
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="window.appTriggerTestInactivityAlert()" class="btn-press px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 text-[10px] font-extrabold" title="Simulate missed drinking notification now">
+                                ⚡ Test Alert
+                            </button>
+                            <button type="button" onclick="window.appOpenReminderModal()" class="btn-press p-2 rounded-xl bg-slate-100 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300 hover:bg-slate-200 text-xs" title="Configure Reminder Settings">
+                                ⚙️
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Progress bar toward inactivity alert threshold -->
+                    <div class="mt-3 w-full bg-slate-100 dark:bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
+                        <div id="inactivity-progress-bar" class="h-full bg-gradient-to-r from-emerald-400 via-ocean-500 to-amber-500 transition-all duration-500" style="width: 15%;"></div>
+                    </div>
+                </div>
+
+                <!-- HOURLY INTAKE GRAPH (00:00 to 23:00) -->
+                <div class="bg-white dark:bg-slate-800/85 rounded-3xl p-4 border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h3 class="text-sm font-display font-bold text-slate-900 dark:text-white">Hourly Intake Graph</h3>
+                                <span id="hourly-peak-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-ocean-50 dark:bg-slate-700 text-ocean-600 dark:text-ocean-300">Peak: --</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Tap any hour bar to inspect volume & pace</p>
+                        </div>
+
+                        <!-- Waking Hours (6AM-11PM) vs Full 24h Toggle -->
+                        <div class="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-0.5 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+                            <button type="button" id="hourly-mode-waking" onclick="window.appSetHourlyGraphMode('waking')" class="btn-press px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 text-ocean-600 dark:text-ocean-400 shadow-sm">
+                                6a–11p
+                            </button>
+                            <button type="button" id="hourly-mode-24h" onclick="window.appSetHourlyGraphMode('all')" class="btn-press px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                24h
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Selected Hour Detail Pill -->
+                    <div class="mb-3 px-3 py-2 rounded-2xl bg-ocean-50/90 dark:bg-slate-900/90 border border-ocean-200/70 dark:border-slate-700 flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">🕒</span>
+                            <span id="hourly-tooltip-slot" class="font-bold text-slate-700 dark:text-slate-200">Select an hour bar below</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="hourly-tooltip-value" class="font-display font-extrabold text-ocean-600 dark:text-ocean-400">0 ml</span>
+                            <button type="button" onclick="window.appQuickAddToSelectedHour(250)" class="btn-press text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-ocean-600 text-white hover:bg-ocean-500" title="Log +250ml into this selected hour">
+                                +250ml here
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable / Responsive Hour Bars -->
+                    <div class="overflow-x-auto no-scrollbar pb-1">
+                        <div id="hourly-bars-container" class="h-32 pt-4 pb-1 flex items-end justify-between gap-1 min-w-[330px]"></div>
+                    </div>
+
+                    <!-- Summary Footer Row -->
+                    <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                        <span>Active Hours: <strong id="hourly-active-count" class="text-slate-800 dark:text-slate-200">0 hrs</strong></span>
+                        <span>Hourly Pace: <strong id="hourly-pace-val" class="text-ocean-600 dark:text-ocean-400">0 ml/hr</strong></span>
+                    </div>
+                </div>
+
+                <!-- INTERACTIVE 7-DAY WEEKLY BAR CHART -->
+                <div class="bg-white dark:bg-slate-800/85 rounded-3xl p-4 border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-sm font-display font-bold text-slate-900 dark:text-white">Weekly Streak Chart</h3>
+                            <p class="text-[11px] text-slate-400">Dashed line = daily goal (<span id="chart-goal-label">2500</span>ml)</p>
+                        </div>
+                        <span id="weekly-avg-badge" class="text-xs font-bold px-2.5 py-1 rounded-xl bg-ocean-50 dark:bg-slate-700 text-ocean-700 dark:text-ocean-300">
+                            Avg: 0ml
+                        </span>
+                    </div>
+
+                    <div class="relative h-36 pt-4 pb-1 px-1 flex items-end justify-between gap-2">
+                        <!-- Target Goal Dashed Line -->
+                        <div id="chart-goal-line" class="absolute left-0 right-0 border-t-2 border-dashed border-amber-400/80 dark:border-amber-400/60 pointer-events-none z-10 flex justify-end pr-1" style="bottom: 75%;">
+                            <span class="-mt-4 text-[9px] font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">Goal</span>
+                        </div>
+                        <!-- Bars Container -->
+                        <div id="weekly-bars-container" class="w-full h-full flex items-end justify-between gap-2 z-0"></div>
+                    </div>
+                </div>
+
+                <!-- SELECTED DAY'S DRINK LOG HISTORY -->
+                <div class="bg-white dark:bg-slate-800/85 rounded-3xl p-4 border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 id="log-section-title" class="text-sm font-display font-bold text-slate-900 dark:text-white">Today's Intake Log</h3>
+                        <div class="flex items-center gap-3">
+                            <button type="button" onclick="window.appClearDayLogs()" id="clear-day-btn" class="btn-press text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline hidden">
+                                Clear Day
+                            </button>
+                            <button type="button" onclick="window.appOpenResetModal()" class="btn-press text-[11px] font-bold text-rose-500 hover:underline flex items-center gap-1">
+                                <span>🗑️ Reset All Data</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="log-history-list" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 VIEW 2: ANALYTICS & DATA MANAGEMENT
+                 ========================================== -->
+            <div id="view-analytics" class="hidden space-y-5">
+                <div class="bg-gradient-to-br from-ocean-500 to-teal-500 rounded-3xl p-5 text-white shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs uppercase font-bold tracking-wider text-ocean-100">Weekly Goal Completion</p>
+                            <h2 id="insight-completion-rate" class="text-3xl font-display font-extrabold mt-1">0%</h2>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl">
+                            🏆
+                        </div>
+                    </div>
+                    <p id="insight-summary-copy" class="text-xs text-ocean-50 mt-3 leading-relaxed">
+                        Keep logging your daily cups to unlock weekly hydration patterns and streak milestones.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-white dark:bg-slate-800/85 p-4 rounded-3xl border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                        <span class="text-xs font-semibold text-slate-400">Total This Week</span>
+                        <p id="stat-total-week" class="text-xl font-display font-extrabold text-slate-900 dark:text-white mt-1">0.0 L</p>
+                        <span class="text-[11px] text-emerald-500 font-medium">7-day volume</span>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800/85 p-4 rounded-3xl border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                        <span class="text-xs font-semibold text-slate-400">Goals Hit</span>
+                        <p id="stat-goals-hit" class="text-xl font-display font-extrabold text-slate-900 dark:text-white mt-1">0 / 7 days</p>
+                        <span class="text-[11px] text-ocean-500 font-medium">100%+ target</span>
+                    </div>
+                </div>
+
+                <!-- Beverage Breakdown Card -->
+                <div class="bg-white dark:bg-slate-800/85 p-4 rounded-3xl border border-slate-200/70 dark:border-slate-700/70 shadow-sm">
+                    <h3 class="text-sm font-display font-bold text-slate-900 dark:text-white mb-3">Weekly Beverage Breakdown</h3>
+                    <div id="beverage-breakdown-list" class="space-y-2.5 text-xs"></div>
+                </div>
+
+                <!-- Data Management & Reset All Controls -->
+                <div class="bg-white dark:bg-slate-800/85 p-4 rounded-3xl border border-rose-200/70 dark:border-rose-900/50 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-display font-bold text-slate-900 dark:text-white">Data Management</h3>
+                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300">Local Storage</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Permanently clear all logged drinks, streaks, and weekly history across all 7 days back to 0 ml.
+                    </p>
+                    <button type="button" onclick="window.appOpenResetModal()" class="btn-press w-full py-3 px-4 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-display font-extrabold text-xs shadow-md shadow-rose-500/20 flex items-center justify-center gap-2">
+                        <span>🗑️</span>
+                        <span>Reset All Hydration Data</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 VIEW 3: FULL LOG HISTORY & QUICK ENTRY
+                 ========================================== -->
+            <div id="view-history" class="hidden space-y-4">
+                <div class="bg-white dark:bg-slate-800/85 p-4 rounded-3xl border border-slate-200/70 dark:border-slate-700/70 shadow-sm flex items-center justify-between">
+                    <div>
+                        <h3 id="history-tab-day-title" class="text-sm font-display font-bold text-slate-900 dark:text-white">Selected Day Logs</h3>
+                        <p class="text-[11px] text-slate-400">Tap any day in the top bar to switch days</p>
+                    </div>
+                    <button type="button" onclick="window.appOpenCustomModal()" class="btn-press px-3 py-2 rounded-2xl bg-ocean-600 text-white font-bold text-xs shadow-sm">
+                        + Add Entry
+                    </button>
+                </div>
+
+                <div id="full-history-tab-list" class="space-y-2.5"></div>
+            </div>
+
+        </main>
+
+        <!-- FLOATING QUICK-SIP ACTION PILL (+20ml Sip) -->
+        <button type="button" onclick="window.appTriggerQuickSipFromFab(event)" id="floating-sip-fab" class="btn-press fixed sm:absolute bottom-20 right-5 z-30 flex items-center gap-1.5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md text-ocean-700 dark:text-ocean-300 border-2 border-ocean-300 dark:border-ocean-700 pl-2.5 pr-3.5 py-2 rounded-full shadow-lg shadow-ocean-500/20 hover:border-ocean-400 group" title="Quick Sip +20ml">
+            <span class="w-6 h-6 rounded-full bg-ocean-100 dark:bg-ocean-900 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">💧</span>
+            <span class="font-display font-extrabold text-xs">+20ml Sip</span>
+        </button>
+
+        <!-- BOTTOM NAVIGATION BAR -->
+        <nav class="px-4 py-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/70 dark:border-slate-800 grid grid-cols-4 items-center z-20 relative">
+            <button type="button" onclick="window.appSwitchTab('dashboard')" id="tab-btn-dashboard" class="btn-press flex flex-col items-center gap-1 text-ocean-600 dark:text-ocean-400 font-bold text-[11px]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Dashboard</span>
+            </button>
+
+            <button type="button" onclick="window.appSwitchTab('analytics')" id="tab-btn-analytics" class="btn-press flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 font-semibold text-[11px]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span>Analytics</span>
+            </button>
+
+            <button type="button" onclick="window.appSwitchTab('history')" id="tab-btn-history" class="btn-press flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 font-semibold text-[11px]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>History</span>
+            </button>
+
+            <button type="button" onclick="window.appOpenCustomModal()" class="btn-press flex flex-col items-center gap-1 text-ocean-600 dark:text-ocean-400 font-extrabold text-[11px]">
+                <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-ocean-600 to-aqua-400 text-white flex items-center justify-center shadow-md">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                </div>
+                <span>Custom</span>
+            </button>
+        </nav>
+
+        <!-- ==========================================
+             MODAL 1: CUSTOM WATER AMOUNT & HOUR PICKER
+             ========================================== -->
+        <div id="custom-modal" onclick="if(event.target === this) window.appCloseCustomModal();" class="modal-backdrop fixed inset-0 z-50 items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-display font-extrabold text-slate-900 dark:text-white">Log Custom Drink</h3>
+                    <button type="button" onclick="window.appCloseCustomModal()" class="btn-press p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-baseline mb-2">
+                        <span class="text-xs font-bold uppercase text-slate-400">Volume</span>
+                        <span class="text-2xl font-display font-extrabold text-ocean-600 dark:text-ocean-400"><span id="custom-slider-val">300</span> ml</span>
+                    </div>
+                    <input id="custom-range-input" type="range" min="20" max="1500" step="10" value="300" oninput="window.appSyncCustomSlider(this.value)" class="w-full accent-ocean-500 cursor-pointer h-2 rounded-lg bg-slate-200 dark:bg-slate-700">
+                    <div class="grid grid-cols-4 gap-1.5 mt-2.5">
+                        <button type="button" onclick="window.appSyncCustomSlider(100)" class="btn-press py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">100ml</button>
+                        <button type="button" onclick="window.appSyncCustomSlider(300)" class="btn-press py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">300ml</button>
+                        <button type="button" onclick="window.appSyncCustomSlider(500)" class="btn-press py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">500ml</button>
+                        <button type="button" onclick="window.appSyncCustomSlider(750)" class="btn-press py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">750ml</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold uppercase text-slate-400 block mb-2">Beverage Type</label>
+                    <div class="grid grid-cols-3 gap-2" id="beverage-type-grid">
+                        <button type="button" onclick="window.appSelectBeverage('Water', '💧')" data-bev="Water" class="bev-btn btn-press p-2.5 rounded-2xl border-2 border-ocean-500 bg-ocean-50/60 dark:bg-ocean-950/60 text-xs font-bold flex flex-col items-center gap-1">
+                            <span class="text-lg">💧</span>
+                            <span>Water</span>
+                        </button>
+                        <button type="button" onclick="window.appSelectBeverage('Sparkling', '🫧')" data-bev="Sparkling" class="bev-btn btn-press p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold flex flex-col items-center gap-1">
+                            <span class="text-lg">🫧</span>
+                            <span>Sparkling</span>
+                        </button>
+                        <button type="button" onclick="window.appSelectBeverage('Herbal Tea', '🍵')" data-bev="Herbal Tea" class="bev-btn btn-press p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold flex flex-col items-center gap-1">
+                            <span class="text-lg">🍵</span>
+                            <span>Herbal Tea</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="custom-hour-select" class="text-xs font-bold uppercase text-slate-400">Hour of Drink</label>
+                        <span class="text-[10px] font-semibold text-ocean-600 dark:text-ocean-400">Updates hourly graph</span>
+                    </div>
+                    <select id="custom-hour-select" class="w-full py-2.5 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-ocean-500"></select>
+                </div>
+
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="window.appCloseCustomModal()" class="btn-press flex-1 py-3 rounded-2xl font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Cancel</button>
+                    <button type="button" onclick="window.appSubmitCustomWater()" class="btn-press flex-1 py-3 rounded-2xl font-bold text-xs bg-ocean-600 hover:bg-ocean-500 text-white shadow-md shadow-ocean-500/20">Add Intake</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 2: EDIT DAILY GOAL
+             ========================================== -->
+        <div id="goal-modal" onclick="if(event.target === this) window.appCloseGoalModal();" class="modal-backdrop fixed inset-0 z-50 items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-display font-extrabold text-slate-900 dark:text-white">Daily Hydration Goal</h3>
+                    <button type="button" onclick="window.appCloseGoalModal()" class="btn-press p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+                </div>
+
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Set your daily hydration target. Your orb percentage and 7-day streak chart update immediately.
+                </p>
+
+                <div class="text-center py-1">
+                    <span id="goal-modal-display" class="text-4xl font-display font-extrabold text-ocean-600 dark:text-ocean-400">2500</span>
+                    <span class="text-sm font-bold text-slate-400 ml-1">ml / day</span>
+                </div>
+
+                <input id="goal-range-input" type="range" min="1200" max="4500" step="100" value="2500" oninput="window.appSetQuickGoal(this.value)" class="w-full accent-ocean-500 cursor-pointer h-2 rounded-lg bg-slate-200 dark:bg-slate-700">
+
+                <div class="grid grid-cols-3 gap-2 pt-1">
+                    <button type="button" onclick="window.appSetQuickGoal(2000)" class="btn-press py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-ocean-50">2000 ml</button>
+                    <button type="button" onclick="window.appSetQuickGoal(2500)" class="btn-press py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-ocean-50">2500 ml</button>
+                    <button type="button" onclick="window.appSetQuickGoal(3200)" class="btn-press py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-ocean-50">3200 ml</button>
+                </div>
+
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="window.appCloseGoalModal()" class="btn-press flex-1 py-3 rounded-2xl font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Cancel</button>
+                    <button type="button" onclick="window.appSaveDailyGoal()" class="btn-press flex-1 py-3 rounded-2xl font-bold text-xs bg-ocean-600 hover:bg-ocean-500 text-white shadow-md shadow-ocean-500/20">Save Target</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 3: SMART INACTIVITY REMINDER SETTINGS
+             ========================================== -->
+        <div id="reminder-modal" onclick="if(event.target === this) window.appCloseReminderModal();" class="modal-backdrop fixed inset-0 z-50 items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🔔</span>
+                        <h3 class="text-lg font-display font-extrabold text-slate-900 dark:text-white">Inactivity Reminders</h3>
+                    </div>
+                    <button type="button" onclick="window.appCloseReminderModal()" class="btn-press p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+                </div>
+
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Get notified automatically when you go too long without logging a sip of water.
+                </p>
+
+                <!-- Enable/Disable Switch -->
+                <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700">
+                    <div>
+                        <p class="text-xs font-bold text-slate-800 dark:text-white">Smart Inactivity Alert</p>
+                        <p class="text-[11px] text-slate-400">Chime & alert banner when idle too long</p>
+                    </div>
+                    <button id="reminder-toggle-switch" type="button" onclick="window.appToggleReminderEnabled()" class="btn-press w-12 h-7 flex items-center rounded-full p-1 transition-colors duration-300 bg-ocean-600">
+                        <div id="reminder-toggle-knob" class="bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 translate-x-5"></div>
+                    </button>
+                </div>
+
+                <!-- Inactivity Threshold Selector -->
+                <div>
+                    <label class="text-xs font-bold uppercase text-slate-400 block mb-2">Alert Me After No Water For</label>
+                    <div class="grid grid-cols-3 gap-2" id="threshold-options-grid">
+                        <button type="button" onclick="window.appSelectReminderThreshold(30)" data-mins="30" class="thresh-btn btn-press py-2.5 px-2 rounded-2xl border text-xs font-bold transition">30 min</button>
+                        <button type="button" onclick="window.appSelectReminderThreshold(45)" data-mins="45" class="thresh-btn btn-press py-2.5 px-2 rounded-2xl border text-xs font-bold transition">45 min</button>
+                        <button type="button" onclick="window.appSelectReminderThreshold(60)" data-mins="60" class="thresh-btn btn-press py-2.5 px-2 rounded-2xl border text-xs font-bold transition">60 min</button>
+                        <button type="button" onclick="window.appSelectReminderThreshold(90)" data-mins="90" class="thresh-btn btn-press py-2.5 px-2 rounded-2xl border text-xs font-bold transition">90 min</button>
+                        <button type="button" onclick="window.appSelectReminderThreshold(120)" data-mins="120" class="thresh-btn btn-press py-2.5 px-2 rounded-2xl border text-xs font-bold transition">120 min</button>
+                        <button type="button" onclick="window.appTriggerTestInactivityAlert()" class="btn-press py-2.5 px-2 rounded-2xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-xs font-extrabold">⚡ Test Now</button>
+                    </div>
+                </div>
+
+                <!-- Browser Push Notification Permission Row -->
+                <div class="p-3.5 rounded-2xl bg-ocean-50/70 dark:bg-slate-800/60 border border-ocean-200/70 dark:border-slate-700 flex items-center justify-between gap-2">
+                    <div>
+                        <p class="text-xs font-bold text-slate-800 dark:text-slate-100">Android & Chrome Push Alerts</p>
+                        <p id="browser-notif-status" class="text-[10px] text-slate-500 dark:text-slate-400">Allow native system tray alerts & vibration</p>
+                    </div>
+                    <button type="button" onclick="window.appRequestBrowserNotificationPermission()" id="browser-notif-btn" class="btn-press px-3 py-1.5 rounded-xl bg-ocean-600 text-white font-bold text-[11px] shrink-0">
+                        Enable
+                    </button>
+                </div>
+
+                <!-- Quick link to Android & Chrome PWA Install Guide -->
+                <button type="button" onclick="window.appCloseReminderModal(); window.appOpenPwaModal();" class="btn-press w-full py-2.5 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-ocean-50 dark:hover:bg-slate-700/80 text-ocean-700 dark:text-ocean-300 font-bold text-xs flex items-center justify-between">
+                    <span>📲 How to get Native Android Notifications & Install</span>
+                    <span>→</span>
+                </button>
+
+                <div class="flex gap-2.5 pt-1">
+                    <button type="button" onclick="window.appCloseReminderModal()" class="btn-press w-full py-3 rounded-2xl font-bold text-xs bg-ocean-600 hover:bg-ocean-500 text-white shadow-md shadow-ocean-500/20">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 4: CHROME INSTALL & NATIVE ANDROID NOTIFICATIONS GUIDE
+             ========================================== -->
+        <div id="pwa-modal" onclick="if(event.target === this) window.appClosePwaModal();" class="modal-backdrop fixed inset-0 z-50 items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[88vh] overflow-y-auto no-scrollbar">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">📲</span>
+                        <h3 class="text-lg font-display font-extrabold text-slate-900 dark:text-white">Install App & Android Alerts</h3>
+                    </div>
+                    <button type="button" onclick="window.appClosePwaModal()" class="btn-press p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+                </div>
+
+                <!-- Direct Native Install Prompt Button (Lights up when Chrome fires beforeinstallprompt) -->
+                <div class="p-4 rounded-2xl bg-gradient-to-br from-ocean-500 to-teal-500 text-white shadow-md space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full" id="pwa-install-status-pill">PWA Ready</span>
+                        <span class="text-lg">🌐</span>
+                    </div>
+                    <h4 class="text-sm font-display font-extrabold">Install HydroFlow on Chrome</h4>
+                    <p id="pwa-install-helper-text" class="text-[11px] text-ocean-50 leading-relaxed">
+                        Install as a standalone full-screen app on your Android home screen or desktop Chrome browser.
+                    </p>
+                    <button type="button" onclick="window.appTriggerNativeInstallPrompt()" id="pwa-native-install-btn" class="btn-press w-full py-2.5 px-3 rounded-xl bg-white text-ocean-700 font-display font-extrabold text-xs shadow-sm flex items-center justify-center gap-1.5">
+                        <span>⬇️</span>
+                        <span id="pwa-native-install-btn-label">Install / Add to Home Screen</span>
+                    </button>
+                </div>
+
+                <!-- Direct 1-Click File Downloads for GitHub Hosting -->
+                <div class="p-3.5 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/70 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-display font-extrabold text-emerald-900 dark:text-emerald-200">📦 Download Files for GitHub Pages</h4>
+                        <span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">3 files</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-800/90 dark:text-emerald-300/90 leading-relaxed">
+                        Click below to download the 3 files directement to your device, then upload them to your GitHub repository:
+                    </p>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button type="button" onclick="window.appDownloadSourceFile('index.html')" class="btn-press py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-display font-extrabold text-[11px] shadow-sm flex items-center justify-center gap-1">
+                            <span>⬇️</span><span>index.html</span>
+                        </button>
+                        <button type="button" onclick="window.appDownloadSourceFile('manifest.json')" class="btn-press py-2 px-2 rounded-xl bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-display font-bold text-[11px] flex items-center justify-center gap-1">
+                            <span>⬇️</span><span>manifest.json</span>
+                        </button>
+                        <button type="button" onclick="window.appDownloadSourceFile('sw.js')" class="btn-press py-2 px-2 rounded-xl bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-display font-bold text-[11px] flex items-center justify-center gap-1">
+                            <span>⬇️</span><span>sw.js</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Answer to User's Question: Native Android Notification System Details -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 space-y-2">
+                    <h4 class="text-xs font-display font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>🤖</span>
+                        <span>Will I get Native Android Notifications?</span>
+                    </h4>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                        <strong>Yes!</strong> HydroFlow uses the <strong>Service Worker Notification API</strong> (<code class="text-[10px] bg-slate-200/70 dark:bg-slate-700 px-1 py-0.5 rounded">showNotification</code>) with vibration patterns (<code class="text-[10px] bg-slate-200/70 dark:bg-slate-700 px-1 py-0.5 rounded">[200, 100, 200]</code>), which Android Chrome requires to post real notifications in your phone's top status bar.
+                    </p>
+                    <ul class="text-[11px] text-slate-500 dark:text-slate-400 space-y-1.5 list-disc pl-4 pt-1">
+                        <li><strong>Hosted on HTTPS / Installed PWA:</strong> When you open this HTML file via an <code class="text-[10px]">https://</code> link (e.g., GitHub Pages, Netlify, Vercel) or <code class="text-[10px]">localhost</code> in Android Chrome and tap <strong>"Add to Home Screen"</strong>, you get native Android system tray notifications and one-click Chrome installation.</li>
+                        <li><strong>Keep App Open or Pinned:</strong> Because pure client-side web apps run without an external cloud push server, timers fire reliably while the app is open or running in the background on Android.</li>
+                    </ul>
+                </div>
+
+                <!-- Test Native Android Notification Now -->
+                <div class="flex items-center justify-between p-3.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60">
+                    <div>
+                        <p class="text-xs font-bold text-amber-900 dark:text-amber-200">Test Native System Notification</p>
+                        <p class="text-[10px] text-amber-700 dark:text-amber-400">Fires ServiceWorker + Vibration + Banner</p>
+                    </div>
+                    <button type="button" onclick="window.appSendTestNativeNotification()" class="btn-press px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shrink-0 shadow-sm">
+                        🔔 Fire Test
+                    </button>
+                </div>
+
+                <button type="button" onclick="window.appClosePwaModal()" class="btn-press w-full py-3 rounded-2xl font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                    Close Guide
+                </button>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             MODAL 5: RESET ALL DATA CONFIRMATION MODAL
+             ========================================== -->
+        <div id="reset-modal" onclick="if(event.target === this) window.appCloseResetModal();" class="modal-backdrop fixed inset-0 z-50 items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl">
+                            🗑️
+                        </div>
+                        <h3 class="text-lg font-display font-extrabold text-slate-900 dark:text-white">Reset All Hydration Data?</h3>
+                    </div>
+                    <button type="button" onclick="window.appCloseResetModal()" class="btn-press p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
+                </div>
+
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    This will permanently clear all logged drinks, streaks, and history back to <strong>0 ml</strong> across all 7 days of the week.
+                </p>
+
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="window.appCloseResetModal()" class="btn-press flex-1 py-3 rounded-2xl font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="window.appConfirmResetAllData()" class="btn-press flex-1 py-3 rounded-2xl font-display font-extrabold text-xs bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/25">
+                        Yes, Reset to 0 ml
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            const STORAGE_KEY = 'hydroflow_clean_v1';
+            const LEGACY_KEYS = ['hydroflow_v1', 'hydroflow_v2', 'hydroflow_v3', 'hydroflow_tracker_v1', 'hydroflow_tracker_v2', 'hydroflow_tracker_v3'];
+            const SIP_VOLUME_ML = 20;
+            const GLASS_VOLUME_ML = 250;
+            const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const FULL_DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+            let deferredInstallPrompt = null;
+            let swRegistration = null;
+            let generatedAppIcon192 = '';
+            let generatedAppIcon512 = '';
+
+            /* ==========================================
+               PWA MANIFEST, APP ICONS & SERVICE WORKER
+               ========================================== */
+            function generatePwaIconDataUrl(size) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+
+                    const grad = ctx.createLinearGradient(0, 0, size, size);
+                    grad.addColorStop(0, '#0284c7');
+                    grad.addColorStop(1, '#14b8a6');
+                    ctx.fillStyle = grad;
+
+                    const r = size * 0.22;
+                    ctx.beginPath();
+                    ctx.moveTo(r, 0);
+                    ctx.lineTo(size - r, 0);
+                    ctx.quadraticCurveTo(size, 0, size, r);
+                    ctx.lineTo(size, size - r);
+                    ctx.quadraticCurveTo(size, size, size - r, size);
+                    ctx.lineTo(r, size);
+                    ctx.quadraticCurveTo(0, size, 0, size - r);
+                    ctx.lineTo(0, r);
+                    ctx.quadraticCurveTo(0, 0, r, 0);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    const cx = size / 2;
+                    const topY = size * 0.2;
+                    const botY = size * 0.78;
+                    const dropRadius = size * 0.23;
+                    ctx.moveTo(cx, topY);
+                    ctx.bezierCurveTo(cx + dropRadius * 1.4, size * 0.48, cx + dropRadius * 1.15, botY, cx, botY);
+                    ctx.bezierCurveTo(cx - dropRadius * 1.15, botY, cx - dropRadius * 1.4, size * 0.48, cx, topY);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    return canvas.toDataURL('image/png');
+                } catch (e) {
+                    return '';
+                }
+            }
+
+            function attachDynamicManifestFallback() {
+                try {
+                    const manifestObj = {
+                        name: 'HydroFlow - Daily Water Tracker',
+                        short_name: 'HydroFlow',
+                        description: 'Interactive daily water habit tracker with +20ml quick-sip orb, hourly intake graph, and smart hydration alerts.',
+                        start_url: './index.html',
+                        scope: './',
+                        display: 'standalone',
+                        orientation: 'portrait',
+                        background_color: '#0f172a',
+                        theme_color: '#0284c7',
+                        icons: [
+                            {
+                                src: generatedAppIcon192,
+                                sizes: '192x192',
+                                type: 'image/png',
+                                purpose: 'any maskable'
+                            },
+                            {
+                                src: generatedAppIcon512,
+                                sizes: '512x512',
+                                type: 'image/png',
+                                purpose: 'any maskable'
+                            }
+                        ]
+                    };
+                    const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+                    const manifestUrl = URL.createObjectURL(manifestBlob);
+                    const linkEl = document.getElementById('dynamic-manifest-link');
+                    if (linkEl) linkEl.setAttribute('href', manifestUrl);
+                } catch (err) {}
+            }
+
+            function registerFallbackBlobServiceWorker() {
+                try {
+                    const swCode = [
+                        "self.addEventListener('install', function(e) { self.skipWaiting(); });",
+                        "self.addEventListener('activate', function(e) { e.waitUntil(self.clients.claim()); });",
+                        "self.addEventListener('fetch', function(e) {});",
+                        "self.addEventListener('notificationclick', function(e) {",
+                        "  e.notification.close();",
+                        "  e.waitUntil(",
+                        "    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {",
+                        "      for (var i = 0; i < clientList.length; i++) {",
+                        "        var client = clientList[i];",
+                        "        if ('focus' in client) {",
+                        "          client.postMessage({ type: 'NOTIFICATION_ACTION', action: e.action || 'open' });",
+                        "          return client.focus();",
+                        "        }",
+                        "      }",
+                        "      if (self.clients.openWindow) return self.clients.openWindow('./');",
+                        "    })",
+                        "  );",
+                        "});"
+                    ].join('\n');
+
+                    const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                    const swUrl = URL.createObjectURL(swBlob);
+                    navigator.serviceWorker.register(swUrl).then(function (reg) {
+                        swRegistration = reg;
+                    }).catch(function () {});
+                } catch (e) {}
+            }
+
+            function initPwaAndServiceWorker() {
+                generatedAppIcon192 = generatePwaIconDataUrl(192);
+                generatedAppIcon512 = generatePwaIconDataUrl(512);
+
+                const appleIcon = document.getElementById('dynamic-apple-icon');
+                if (appleIcon && generatedAppIcon192) {
+                    appleIcon.href = generatedAppIcon192;
+                }
+
+                // 1. Primary: Keep ./manifest.json for GitHub Pages / Vercel; fallback to dynamic blob only if ./manifest.json is unreachable
+                fetch('./manifest.json', { method: 'HEAD' }).then(function (res) {
+                    if (!res || !res.ok) {
+                        attachDynamicManifestFallback();
+                    }
+                }).catch(function () {
+                    attachDynamicManifestFallback();
+                });
+
+                // 2. Primary: Register ./sw.js for GitHub Pages / Vercel Android Chrome PWA; fallback to blob SW in preview canvas
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('./sw.js').then(function (reg) {
+                        swRegistration = reg;
+                    }).catch(function () {
+                        registerFallbackBlobServiceWorker();
+                    });
+
+                    navigator.serviceWorker.addEventListener('message', function (event) {
+                        if (event.data && event.data.type === 'NOTIFICATION_ACTION') {
+                            if (event.data.action === 'sip20') {
+                                resolveAlertWithDrink(20, 'Quick Sip', '💧');
+                            } else if (event.data.action === 'glass250') {
+                                resolveAlertWithDrink(250, 'Glass', '🥛');
+                            }
+                        }
+                    });
+                }
+
+                // 3. Listen for Chrome's native beforeinstallprompt event
+                window.addEventListener('beforeinstallprompt', function (e) {
+                    e.preventDefault();
+                    deferredInstallPrompt = e;
+                    updatePwaInstallUI();
+                });
+
+                window.addEventListener('appinstalled', function () {
+                    deferredInstallPrompt = null;
+                    updatePwaInstallUI();
+                    showToast('🎉 HydroFlow installed on your device!', '📲');
+                });
+            }
+
+            function updatePwaInstallUI() {
+                const statusPill = document.getElementById('pwa-install-status-pill');
+                const btnLabel = document.getElementById('pwa-native-install-btn-label');
+                const helperText = document.getElementById('pwa-install-helper-text');
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+                if (isStandalone) {
+                    if (statusPill) statusPill.textContent = 'Installed ✓';
+                    if (btnLabel) btnLabel.textContent = 'Running as Installed App';
+                    if (helperText) helperText.textContent = 'You are running HydroFlow in standalone full-screen mode!';
+                } else if (deferredInstallPrompt) {
+                    if (statusPill) statusPill.textContent = 'One-Click Install Ready';
+                    if (btnLabel) btnLabel.textContent = 'Install HydroFlow Now';
+                }
+            }
+
+            function sendNativeSystemNotification(title, bodyText) {
+                if (!('Notification' in window) || Notification.permission !== 'granted') {
+                    return false;
+                }
+
+                if ('vibrate' in navigator) {
+                    try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+                }
+
+                const notifOptions = {
+                    body: bodyText,
+                    icon: generatedAppIcon192 || undefined,
+                    badge: generatedAppIcon192 || undefined,
+                    vibrate: [200, 100, 200],
+                    tag: 'hydroflow-hydration-reminder',
+                    renotify: true,
+                    actions: [
+                        { action: 'sip20', title: '💧 +20ml Sip' },
+                        { action: 'glass250', title: '🥛 +250ml Glass' }
+                    ]
+                };
+
+                if (swRegistration && typeof swRegistration.showNotification === 'function') {
+                    swRegistration.showNotification(title, notifOptions).catch(function () {
+                        try { new Notification(title, { body: bodyText, icon: generatedAppIcon192 }); } catch (e) {}
+                    });
+                    return true;
+                }
+
+                if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+                    navigator.serviceWorker.ready.then(function (reg) {
+                        if (reg && typeof reg.showNotification === 'function') {
+                            reg.showNotification(title, notifOptions);
+                        } else {
+                            try { new Notification(title, { body: bodyText, icon: generatedAppIcon192 }); } catch (e) {}
+                        }
+                    }).catch(function () {
+                        try { new Notification(title, { body: bodyText, icon: generatedAppIcon192 }); } catch (e) {}
+                    });
+                }
+
+                try {
+                    new Notification(title, {
+                        body: bodyText,
+                        icon: generatedAppIcon192 || undefined,
+                        tag: 'hydroflow-hydration-reminder'
+                    });
+                    return true;
+                } catch (err) {
+                    return true;
+                }
+            }
+
+            function getTodayIndex() {
+                const jsDay = new Date().getDay();
+                return jsDay === 0 ? 6 : jsDay - 1;
+            }
+
+            function createEmptyWeekLogs() {
+                return [[], [], [], [], [], [], []];
+            }
+
+            let appState = {
+                dailyGoal: 2500,
+                selectedDayIndex: getTodayIndex(),
+                soundEnabled: true,
+                darkMode: false,
+                activeTab: 'dashboard',
+                hourlyGraphMode: 'waking',
+                selectedHourSlot: new Date().getHours(),
+                reminderEnabled: true,
+                reminderThresholdMins: 60,
+                lastSipTimestamp: null,
+                snoozedUntilTimestamp: 0,
+                weekLogs: createEmptyWeekLogs()
+            };
+
+            let customBeverage = { label: 'Water', icon: '💧' };
+            let toastTimeoutId = null;
+            let sharedAudioCtx = null;
+
+            /* ==========================================
+               TIME & HOUR FORMATTING HELPERS
+               ========================================== */
+            function formatHourLabel(hour24, shortLabel) {
+                const h = ((Number(hour24) % 24) + 24) % 24;
+                const suffix = h >= 12 ? 'PM' : 'AM';
+                const h12 = h % 12 === 0 ? 12 : h % 12;
+                if (shortLabel) {
+                    return h12 + (h >= 12 ? 'p' : 'a');
+                }
+                return (h12 < 10 ? '0' + h12 : h12) + ':00 ' + suffix;
+            }
+
+            function formatHourRangeLabel(hour24) {
+                return formatHourLabel(hour24, false) + ' – ' + formatHourLabel((hour24 + 1) % 24, false);
+            }
+
+            function parseHourFromTimeString(timeStr) {
+                if (!timeStr || typeof timeStr !== 'string') return 12;
+                const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+                if (!match) return 12;
+                let hour = parseInt(match[1], 10);
+                const mer = (match[3] || '').toUpperCase();
+                if (mer === 'PM' && hour < 12) hour += 12;
+                if (mer === 'AM' && hour === 12) hour = 0;
+                return Math.min(23, Math.max(0, hour));
+            }
+
+            /* ==========================================
+               NATIVE WEB AUDIO API SYNTHESIS
+               ========================================== */
+            function playWaterSound(isGoalReached, isQuickSip, isAlertChime) {
+                if (!appState.soundEnabled) return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    if (!sharedAudioCtx) {
+                        sharedAudioCtx = new AudioCtx();
+                    }
+                    if (sharedAudioCtx.state === 'suspended') {
+                        sharedAudioCtx.resume();
+                    }
+
+                    const now = sharedAudioCtx.currentTime;
+
+                    function playNote(freq, startTime, duration, type) {
+                        const osc = sharedAudioCtx.createOscillator();
+                        const gain = sharedAudioCtx.createGain();
+                        osc.type = type || 'sine';
+                        osc.frequency.setValueAtTime(freq, startTime);
+                        gain.gain.setValueAtTime(0.001, startTime);
+                        gain.gain.exponentialRampToValueAtTime(0.14, startTime + 0.015);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+                        osc.connect(gain);
+                        gain.connect(sharedAudioCtx.destination);
+                        osc.start(startTime);
+                        osc.stop(startTime + duration + 0.02);
+                    }
+
+                    if (isAlertChime) {
+                        playNote(880, now, 0.14, 'triangle');
+                        playNote(659.25, now + 0.13, 0.14, 'triangle');
+                        playNote(880, now + 0.26, 0.24, 'triangle');
+                    } else if (isGoalReached) {
+                        playNote(523.25, now, 0.12, 'sine');
+                        playNote(659.25, now + 0.09, 0.12, 'sine');
+                        playNote(783.99, now + 0.18, 0.12, 'sine');
+                        playNote(1046.5, now + 0.27, 0.28, 'sine');
+                    } else if (isQuickSip) {
+                        playNote(783.99, now, 0.08, 'sine');
+                        playNote(987.77, now + 0.05, 0.1, 'sine');
+                    } else {
+                        playNote(659.25, now, 0.14, 'sine');
+                    }
+                } catch (err) {}
+            }
+
+            /* ==========================================
+               CLEAN STORAGE INITIALIZATION (NO DEMO DATA)
+               ========================================== */
+            function purgeLegacyDemoStorage() {
+                try {
+                    LEGACY_KEYS.forEach(function (key) {
+                        localStorage.removeItem(key);
+                    });
+                } catch (e) {}
+            }
+
+            function loadState() {
+                purgeLegacyDemoStorage();
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && typeof parsed === 'object') {
+                            appState.dailyGoal = Number(parsed.dailyGoal) > 0 ? Number(parsed.dailyGoal) : 2500;
+                            appState.soundEnabled = typeof parsed.soundEnabled === 'boolean' ? parsed.soundEnabled : true;
+                            appState.darkMode = Boolean(parsed.darkMode);
+                            appState.hourlyGraphMode = parsed.hourlyGraphMode === 'all' ? 'all' : 'waking';
+                            appState.reminderEnabled = typeof parsed.reminderEnabled === 'boolean' ? parsed.reminderEnabled : true;
+                            appState.reminderThresholdMins = Number(parsed.reminderThresholdMins) > 0 ? Number(parsed.reminderThresholdMins) : 60;
+                            appState.lastSipTimestamp = Number(parsed.lastSipTimestamp) > 0 ? Number(parsed.lastSipTimestamp) : null;
+                            appState.snoozedUntilTimestamp = Number(parsed.snoozedUntilTimestamp) || 0;
+
+                            if (Array.isArray(parsed.weekLogs) && parsed.weekLogs.length === 7) {
+                                appState.weekLogs = parsed.weekLogs.map(function (dayArr) {
+                                    if (!Array.isArray(dayArr)) return [];
+                                    return dayArr.map(function (entry, i) {
+                                        const h = typeof entry.hour === 'number' && !isNaN(entry.hour)
+                                            ? Math.min(23, Math.max(0, entry.hour))
+                                            : parseHourFromTimeString(entry.time);
+                                        return {
+                                            id: entry.id || (Date.now() + i),
+                                            amount: Number(entry.amount) || 0,
+                                            label: entry.label || 'Water',
+                                            icon: entry.icon || '💧',
+                                            time: entry.time || formatHourLabel(h, false),
+                                            hour: h
+                                        };
+                                    });
+                                });
+                            } else {
+                                appState.weekLogs = createEmptyWeekLogs();
+                            }
+                        }
+                    } else {
+                        appState.weekLogs = createEmptyWeekLogs();
+                        appState.lastSipTimestamp = null;
+                        saveState();
+                    }
+                } catch (err) {
+                    appState.weekLogs = createEmptyWeekLogs();
+                    appState.lastSipTimestamp = null;
+                }
+
+                appState.selectedDayIndex = getTodayIndex();
+                appState.selectedHourSlot = new Date().getHours();
+                applyTheme();
+                updateSoundIcons();
+            }
+
+            function saveState() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                } catch (err) {}
+            }
+
+            /* ==========================================
+               CALCULATIONS
+               ========================================== */
+            function getDayTotal(dayIndex) {
+                const entries = appState.weekLogs[dayIndex] || [];
+                return entries.reduce(function (sum, item) {
+                    return sum + (Number(item.amount) || 0);
+                }, 0);
+            }
+
+            function getDayHourlyTotals(dayIndex) {
+                const hours = new Array(24).fill(0);
+                const entries = appState.weekLogs[dayIndex] || [];
+                entries.forEach(function (item) {
+                    const h = typeof item.hour === 'number' ? item.hour : parseHourFromTimeString(item.time);
+                    if (h >= 0 && h < 24) {
+                        hours[h] += Number(item.amount) || 0;
+                    }
+                });
+                return hours;
+            }
+
+            function calculateStreak() {
+                const today = getTodayIndex();
+                let streak = 0;
+                const todayMet = getDayTotal(today) >= appState.dailyGoal;
+                const startIdx = todayMet ? today : today - 1;
+
+                for (let i = startIdx; i >= 0; i--) {
+                    if (getDayTotal(i) >= appState.dailyGoal) {
+                        streak++;
+                    } else {
+                        break;
+                    }
+                }
+                return streak;
+            }
+
+            /* ==========================================
+               TOAST NOTIFICATION
+               ========================================== */
+            function showToast(message, icon) {
+                const toast = document.getElementById('toast');
+                const toastText = document.getElementById('toast-text');
+                const toastIcon = document.getElementById('toast-icon');
+                if (!toast || !toastText || !toastIcon) return;
+
+                toastText.textContent = message;
+                toastIcon.textContent = icon || '💧';
+
+                toast.classList.remove('opacity-0', '-translate-y-4');
+                toast.classList.add('opacity-100', 'translate-y-0');
+
+                if (toastTimeoutId) clearTimeout(toastTimeoutId);
+                toastTimeoutId = setTimeout(function () {
+                    toast.classList.remove('opacity-100', 'translate-y-0');
+                    toast.classList.add('opacity-0', '-translate-y-4');
+                }, 2200);
+            }
+
+            /* ==========================================
+               SMART HYDRATION REMINDER & INACTIVITY ALERTS
+               ========================================== */
+            function getElapsedMinutesSinceLastSip() {
+                if (!appState.lastSipTimestamp) return null;
+                const diffMs = Math.max(0, Date.now() - appState.lastSipTimestamp);
+                return Math.floor(diffMs / 60000);
+            }
+
+            function formatMinutesHuman(mins) {
+                if (mins < 1) return 'just now';
+                if (mins < 60) return mins + 'm';
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
+            }
+
+            function updateReminderStatusUI() {
+                const elapsedMins = getElapsedMinutesSinceLastSip();
+                const threshold = appState.reminderThresholdMins || 60;
+                const enabled = appState.reminderEnabled;
+
+                const headerDot = document.getElementById('reminder-active-dot');
+                const pillDot = document.getElementById('timer-pill-dot');
+                const pillText = document.getElementById('live-sip-timer-text');
+                const badgeEl = document.getElementById('reminder-status-badge');
+                const subtextEl = document.getElementById('reminder-countdown-subtext');
+                const progressEl = document.getElementById('inactivity-progress-bar');
+
+                if (elapsedMins === null) {
+                    if (headerDot) headerDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-400 ring-2 ring-white dark:ring-slate-800';
+                    if (pillDot) pillDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                    if (pillText) pillText.textContent = 'No sips logged yet';
+                    if (badgeEl) {
+                        badgeEl.textContent = enabled ? ('Every ' + threshold + 'm') : 'Paused';
+                        badgeEl.className = 'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-ocean-100 dark:bg-slate-700 text-ocean-700 dark:text-ocean-300';
+                    }
+                    if (subtextEl) subtextEl.textContent = 'Log your first sip of water to start the inactivity timer';
+                    if (progressEl) progressEl.style.width = '0%';
+                    return;
+                }
+
+                const elapsedStr = elapsedMins === 0 ? 'just now' : formatMinutesHuman(elapsedMins) + ' ago';
+
+                if (!enabled) {
+                    if (headerDot) headerDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-400 ring-2 ring-white dark:ring-slate-800';
+                    if (pillDot) pillDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                    if (pillText) pillText.textContent = 'Last sip: ' + elapsedStr + ' (Alerts Off)';
+                    if (badgeEl) {
+                        badgeEl.textContent = 'Paused';
+                        badgeEl.className = 'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400';
+                    }
+                    if (subtextEl) subtextEl.textContent = 'Reminders paused • Tap ⚙️ to enable';
+                    if (progressEl) progressEl.style.width = '0%';
+                    return;
+                }
+
+                const pct = Math.min(100, Math.round((elapsedMins / threshold) * 100));
+                const remainingMins = Math.max(0, threshold - elapsedMins);
+
+                if (progressEl) progressEl.style.width = pct + '%';
+
+                if (elapsedMins >= threshold) {
+                    if (headerDot) headerDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-ping';
+                    if (pillDot) pillDot.className = 'w-2 h-2 rounded-full bg-rose-500 animate-ping';
+                    if (pillText) pillText.textContent = 'Overdue: ' + elapsedStr;
+                    if (badgeEl) {
+                        badgeEl.textContent = 'Overdue!';
+                        badgeEl.className = 'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/90 text-rose-600 dark:text-rose-300';
+                    }
+                    if (subtextEl) subtextEl.textContent = 'No water for ' + formatMinutesHuman(elapsedMins) + ' • Time for a sip!';
+
+                    if (Date.now() > (appState.snoozedUntilTimestamp || 0)) {
+                        showInactivityBanner(elapsedMins);
+                    }
+                } else {
+                    if (headerDot) headerDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-800';
+                    if (pillDot) pillDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                    if (pillText) pillText.textContent = 'Last sip: ' + elapsedStr;
+                    if (badgeEl) {
+                        badgeEl.textContent = 'Every ' + threshold + 'm';
+                        badgeEl.className = 'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300';
+                    }
+                    if (subtextEl) {
+                        subtextEl.textContent = 'Last sip: ' + elapsedStr + ' • Next alert in ' + remainingMins + 'm';
+                    }
+                }
+            }
+
+            function showInactivityBanner(elapsedMins) {
+                const banner = document.getElementById('inactivity-alert-banner');
+                const badge = document.getElementById('alert-elapsed-badge');
+                const desc = document.getElementById('alert-banner-desc');
+                if (badge) badge.textContent = formatMinutesHuman(elapsedMins || appState.reminderThresholdMins) + ' idle';
+                if (desc) desc.textContent = "You haven't logged water for " + formatMinutesHuman(elapsedMins || appState.reminderThresholdMins) + '. Take a quick sip now!';
+                if (banner) banner.classList.remove('hidden');
+            }
+
+            function dismissInactivityAlert() {
+                const banner = document.getElementById('inactivity-alert-banner');
+                if (banner) banner.classList.add('hidden');
+            }
+
+            function snoozeInactivityAlert(mins) {
+                appState.snoozedUntilTimestamp = Date.now() + (Number(mins) || 15) * 60000;
+                dismissInactivityAlert();
+                saveState();
+                showToast('Reminder snoozed for ' + mins + 'm', '💤');
+            }
+
+            function resolveAlertWithDrink(amount, label, icon) {
+                dismissInactivityAlert();
+                logWater(amount, label, icon, amount === SIP_VOLUME_ML);
+            }
+
+            function triggerTestInactivityAlert() {
+                showInactivityBanner(appState.reminderThresholdMins || 60);
+                playWaterSound(false, false, true);
+                sendNativeSystemNotification(
+                    '💧 Time for a Water Break!',
+                    'HydroFlow Reminder: Take a quick +20ml sip or a 250ml glass of water to stay hydrated!'
+                );
+                showToast('Hydration alert triggered!', '⏰');
+            }
+
+            function renderWeekSelector() {
+                const container = document.getElementById('week-selector-row');
+                const jumpBtn = document.getElementById('jump-today-btn');
+                const headerTitle = document.getElementById('header-day-title');
+                if (!container) return;
+
+                const todayIdx = getTodayIndex();
+                const selIdx = appState.selectedDayIndex;
+
+                if (jumpBtn) {
+                    jumpBtn.classList.toggle('hidden', selIdx === todayIdx);
+                }
+                if (headerTitle) {
+                    headerTitle.textContent = selIdx === todayIdx ? "Today's Hydration" : FULL_DAY_NAMES[selIdx] + "'s Hydration";
+                }
+
+                let html = '';
+                for (let i = 0; i < 7; i++) {
+                    const total = getDayTotal(i);
+                    const pct = Math.min(100, Math.round((total / appState.dailyGoal) * 100));
+                    const isSelected = i === selIdx;
+                    const isToday = i === todayIdx;
+                    const goalMet = total >= appState.dailyGoal;
+
+                    const btnClasses = isSelected
+                        ? 'bg-ocean-600 text-white shadow-md shadow-ocean-500/25 border-ocean-500'
+                        : 'bg-slate-50/80 dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-700/70 hover:border-ocean-300';
+
+                    html += '<button type="button" onclick="window.appSelectDay(' + i + ')" class="btn-press flex flex-col items-center py-2 px-1 rounded-2xl border transition-all ' + btnClasses + '">' +
+                        '<span class="text-[10px] font-bold uppercase tracking-tighter ' + (isSelected ? 'text-ocean-100' : 'text-slate-400') + '">' + DAY_NAMES[i] + (isToday ? '•' : '') + '</span>' +
+                        '<div class="mt-1 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold ' +
+                        (goalMet ? (isSelected ? 'bg-white text-ocean-600' : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400') : (isSelected ? 'bg-ocean-700 text-white' : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300')) + '">' +
+                        (goalMet ? '✓' : pct + '%') +
+                        '</div>' +
+                        '</button>';
+                }
+                container.innerHTML = html;
+            }
+
+            function renderOrbAndSipStats() {
+                const selIdx = appState.selectedDayIndex;
+                const currentMl = getDayTotal(selIdx);
+                const goalMl = appState.dailyGoal;
+                const rawPct = Math.round((currentMl / goalMl) * 100);
+                const clampedPct = Math.min(100, Math.max(0, rawPct));
+
+                const orbCurrent = document.getElementById('orb-current');
+                const orbGoal = document.getElementById('orb-goal');
+                const orbPct = document.getElementById('orb-percentage');
+                const waveFront = document.getElementById('wave-front');
+                const waveBack = document.getElementById('wave-back');
+                const streakCount = document.getElementById('streak-count');
+                const undoBtn = document.getElementById('undo-btn');
+
+                if (orbCurrent) orbCurrent.textContent = currentMl;
+                if (orbGoal) orbGoal.textContent = goalMl;
+                if (orbPct) orbPct.textContent = rawPct + '%';
+
+                const topOffset = 100 - clampedPct;
+                if (waveFront) waveFront.style.top = topOffset + '%';
+                if (waveBack) waveBack.style.top = Math.max(0, topOffset - 3) + '%';
+
+                if (streakCount) streakCount.textContent = calculateStreak();
+
+                const dayLogs = appState.weekLogs[selIdx] || [];
+                if (undoBtn) undoBtn.disabled = dayLogs.length === 0;
+
+                // Sips Remaining Calculation below Orb
+                const remainingMl = Math.max(0, goalMl - currentMl);
+                const sipsLeft = Math.ceil(remainingMl / SIP_VOLUME_ML);
+                const glassesLeft = (remainingMl / GLASS_VOLUME_ML).toFixed(1).replace(/\.0$/, '');
+
+                const sipsIcon = document.getElementById('sips-remaining-icon');
+                const sipsText = document.getElementById('sips-remaining-text');
+                const sipsSub = document.getElementById('sips-glasses-sub');
+                const sipsPill = document.getElementById('sips-remaining-pill');
+                const statusMsg = document.getElementById('status-message');
+
+                if (remainingMl === 0) {
+                    const bonusSips = Math.floor((currentMl - goalMl) / SIP_VOLUME_ML);
+                    if (sipsIcon) sipsIcon.textContent = '🎉';
+                    if (sipsText) sipsText.textContent = 'Daily goal achieved!';
+                    if (sipsSub) {
+                        sipsSub.textContent = bonusSips > 0 ? ('+' + bonusSips + ' bonus sips') : '100% Complete';
+                        sipsSub.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300';
+                    }
+                    if (sipsPill) {
+                        sipsPill.className = 'btn-press inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700 shadow-sm transition-all';
+                    }
+                    if (statusMsg) statusMsg.textContent = 'Awesome job! Your hydration target for ' + FULL_DAY_NAMES[selIdx] + ' is complete.';
+                } else {
+                    if (sipsIcon) sipsIcon.textContent = '💧';
+                    if (sipsText) sipsText.textContent = sipsLeft + (sipsLeft === 1 ? ' sip left to goal' : ' sips left to goal');
+                    if (sipsSub) {
+                        sipsSub.textContent = '~' + glassesLeft + ' glasses';
+                        sipsSub.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-ocean-50 dark:bg-slate-700 text-ocean-700 dark:text-ocean-300';
+                    }
+                    if (sipsPill) {
+                        sipsPill.className = 'btn-press inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-slate-800/95 border border-ocean-200/90 dark:border-slate-700 shadow-sm hover:border-ocean-400 transition-all';
+                    }
+                    if (statusMsg) {
+                        statusMsg.textContent = currentMl === 0
+                            ? 'Tap the orb anytime for a +20ml quick sip, or log a cup below!'
+                            : (remainingMl + 'ml remaining to reach your ' + goalMl + 'ml target.');
+                    }
+                }
+            }
+
+            function renderHourlyGraph() {
+                const container = document.getElementById('hourly-bars-container');
+                if (!container) return;
+
+                const selIdx = appState.selectedDayIndex;
+                const hourlyTotals = getDayHourlyTotals(selIdx);
+                const mode = appState.hourlyGraphMode === 'all' ? 'all' : 'waking';
+
+                const btnWaking = document.getElementById('hourly-mode-waking');
+                const btn24h = document.getElementById('hourly-mode-24h');
+                if (btnWaking && btn24h) {
+                    if (mode === 'waking') {
+                        btnWaking.className = 'btn-press px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 text-ocean-600 dark:text-ocean-400 shadow-sm';
+                        btn24h.className = 'btn-press px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400';
+                    } else {
+                        btn24h.className = 'btn-press px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 text-ocean-600 dark:text-ocean-400 shadow-sm';
+                        btnWaking.className = 'btn-press px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400';
+                    }
+                }
+
+                const startHour = mode === 'waking' ? 6 : 0;
+                const endHour = mode === 'waking' ? 23 : 23;
+
+                let maxHourVal = 500;
+                let peakHour = -1;
+                let peakVal = 0;
+                let activeHoursCount = 0;
+                let totalDayMl = 0;
+
+                for (let h = 0; h < 24; h++) {
+                    const v = hourlyTotals[h];
+                    totalDayMl += v;
+                    if (v > 0) activeHoursCount++;
+                    if (v > peakVal) {
+                        peakVal = v;
+                        peakHour = h;
+                    }
+                    if (v > maxHourVal) maxHourVal = v;
+                }
+
+                const peakBadge = document.getElementById('hourly-peak-badge');
+                const activeCountEl = document.getElementById('hourly-active-count');
+                const paceValEl = document.getElementById('hourly-pace-val');
+
+                if (peakBadge) {
+                    peakBadge.textContent = peakVal > 0 ? ('Peak: ' + formatHourLabel(peakHour, true) + ' (' + peakVal + 'ml)') : 'Peak: --';
+                }
+                if (activeCountEl) {
+                    activeCountEl.textContent = activeHoursCount + (activeHoursCount === 1 ? ' hr' : ' hrs');
+                }
+                if (paceValEl) {
+                    const pace = activeHoursCount > 0 ? Math.round(totalDayMl / activeHoursCount) : 0;
+                    paceValEl.textContent = pace + ' ml/hr';
+                }
+
+                const selHour = typeof appState.selectedHourSlot === 'number' ? appState.selectedHourSlot : new Date().getHours();
+                const tooltipSlot = document.getElementById('hourly-tooltip-slot');
+                const tooltipVal = document.getElementById('hourly-tooltip-value');
+                if (tooltipSlot) {
+                    tooltipSlot.textContent = DAY_NAMES[selIdx] + ' • ' + formatHourRangeLabel(selHour);
+                }
+                if (tooltipVal) {
+                    tooltipVal.textContent = (hourlyTotals[selHour] || 0) + ' ml';
+                }
+
+                let barsHtml = '';
+                for (let h = startHour; h <= endHour; h++) {
+                    const val = hourlyTotals[h] || 0;
+                    const heightPct = val > 0 ? Math.max(12, Math.round((val / maxHourVal) * 100)) : 6;
+                    const isSelected = h === selHour;
+                    const showTickLabel = mode === 'waking' ? (h % 2 === 0) : (h % 3 === 0);
+
+                    const barColor = isSelected
+                        ? 'bg-gradient-to-t from-ocean-600 to-aqua-400 ring-2 ring-ocean-400/50'
+                        : (val > 0 ? 'bg-ocean-400/85 dark:bg-ocean-500/80 hover:bg-ocean-500' : 'bg-slate-200/80 dark:bg-slate-700/70');
+
+                    barsHtml += '<button type="button" onclick="window.appSelectHourBar(' + h + ')" class="btn-press flex-1 flex flex-col items-center justify-end h-full group focus:outline-none" title="' + formatHourLabel(h, false) + ': ' + val + 'ml">' +
+                        '<div class="w-full max-w-[14px] rounded-t-lg transition-all duration-300 ' + barColor + '" style="height: ' + heightPct + '%;"></div>' +
+                        '<span class="mt-1 text-[9px] font-bold ' + (isSelected ? 'text-ocean-600 dark:text-ocean-400 font-extrabold' : 'text-slate-400') + '">' +
+                        (showTickLabel || isSelected ? formatHourLabel(h, true) : '·') +
+                        '</span>' +
+                        '</button>';
+                }
+                container.innerHTML = barsHtml;
+            }
+
+            function renderWeeklyChart() {
+                const container = document.getElementById('weekly-bars-container');
+                const goalLabel = document.getElementById('chart-goal-label');
+                const avgBadge = document.getElementById('weekly-avg-badge');
+                const goalLine = document.getElementById('chart-goal-line');
+                if (!container) return;
+
+                if (goalLabel) goalLabel.textContent = appState.dailyGoal;
+
+                const totals = [];
+                let weekSum = 0;
+                for (let i = 0; i < 7; i++) {
+                    const t = getDayTotal(i);
+                    totals.push(t);
+                    weekSum += t;
+                }
+
+                const avgMl = Math.round(weekSum / 7);
+                if (avgBadge) avgBadge.textContent = 'Avg: ' + avgMl + 'ml';
+
+                const maxChartScale = Math.max(appState.dailyGoal * 1.2, ...totals, 1000);
+                const goalLineBottomPct = Math.min(92, Math.max(15, Math.round((appState.dailyGoal / maxChartScale) * 100)));
+                if (goalLine) goalLine.style.bottom = goalLineBottomPct + '%';
+
+                let html = '';
+                for (let i = 0; i < 7; i++) {
+                    const total = totals[i];
+                    const heightPct = total > 0 ? Math.max(10, Math.min(100, Math.round((total / maxChartScale) * 100))) : 5;
+                    const isSelected = i === appState.selectedDayIndex;
+                    const hitGoal = total >= appState.dailyGoal;
+
+                    const barClasses = hitGoal
+                        ? 'bg-gradient-to-t from-emerald-500 to-teal-400'
+                        : (isSelected ? 'bg-gradient-to-t from-ocean-600 to-ocean-400' : 'bg-ocean-300/75 dark:bg-ocean-700/60');
+
+                    html += '<button type="button" onclick="window.appSelectDay(' + i + ')" class="btn-press flex-1 h-full flex flex-col items-center justify-end group">' +
+                        '<span class="text-[9px] font-bold mb-1 ' + (isSelected ? 'text-ocean-600 dark:text-ocean-300' : 'text-slate-400') + '">' + (total > 0 ? total : '0') + '</span>' +
+                        '<div class="w-full max-w-[26px] rounded-t-xl transition-all duration-500 ' + barClasses + (isSelected ? ' ring-2 ring-ocean-400/60' : '') + '" style="height: ' + heightPct + '%;"></div>' +
+                        '<span class="mt-1.5 text-[10px] font-bold ' + (isSelected ? 'text-ocean-600 dark:text-ocean-400 font-extrabold' : 'text-slate-400') + '">' + DAY_NAMES[i] + '</span>' +
+                        '</button>';
+                }
+                container.innerHTML = html;
+            }
+
+            function renderLogHistory() {
+                const listEl = document.getElementById('log-history-list');
+                const fullHistoryEl = document.getElementById('full-history-tab-list');
+                const clearDayBtn = document.getElementById('clear-day-btn');
+                const sectionTitle = document.getElementById('log-section-title');
+                const historyTabTitle = document.getElementById('history-tab-day-title');
+
+                const selIdx = appState.selectedDayIndex;
+                const todayIdx = getTodayIndex();
+                const dayTitle = selIdx === todayIdx ? "Today's Intake Log" : FULL_DAY_NAMES[selIdx] + "'s Intake Log";
+
+                if (sectionTitle) sectionTitle.textContent = dayTitle;
+                if (historyTabTitle) historyTabTitle.textContent = dayTitle;
+
+                const logs = (appState.weekLogs[selIdx] || []).slice().reverse();
+                if (clearDayBtn) clearDayBtn.classList.toggle('hidden', logs.length === 0);
+
+                if (logs.length === 0) {
+                    const emptyHtml = '<div class="py-6 text-center text-xs text-slate-400 dark:text-slate-500">' +
+                        '<p class="text-base mb-1">💧</p>' +
+                        '<p class="font-semibold">No drinks logged for ' + FULL_DAY_NAMES[selIdx] + ' yet.</p>' +
+                        '<p class="text-[11px] mt-0.5">Tap the orb for a +20ml sip or use the quick-add buttons above.</p>' +
+                        '</div>';
+                    if (listEl) listEl.innerHTML = emptyHtml;
+                    if (fullHistoryEl) fullHistoryEl.innerHTML = emptyHtml;
+                    return;
+                }
+
+                const itemsHtml = logs.map(function (item) {
+                    return '<div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60">' +
+                        '<div class="flex items-center gap-2.5">' +
+                        '<span class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-base shadow-sm">' + (item.icon || '💧') + '</span>' +
+                        '<div>' +
+                        '<p class="text-xs font-bold text-slate-800 dark:text-slate-100">+' + item.amount + ' ml <span class="font-medium text-slate-400">• ' + (item.label || 'Water') + '</span></p>' +
+                        '<p class="text-[10px] text-slate-400">' + (item.time || '') + '</p>' +
+                        '</div>' +
+                        '</div>' +
+                        '<button type="button" onclick="window.appDeleteLogEntry(' + item.id + ')" class="btn-press p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-xs" title="Delete Entry">✕</button>' +
+                        '</div>';
+                }).join('');
+
+                if (listEl) listEl.innerHTML = itemsHtml;
+                if (fullHistoryEl) fullHistoryEl.innerHTML = itemsHtml;
+            }
+
+            function renderAnalyticsView() {
+                let weekTotalMl = 0;
+                let goalsHit = 0;
+                const bevMap = {};
+
+                for (let i = 0; i < 7; i++) {
+                    const dayLogs = appState.weekLogs[i] || [];
+                    const daySum = getDayTotal(i);
+                    weekTotalMl += daySum;
+                    if (daySum >= appState.dailyGoal) goalsHit++;
+
+                    dayLogs.forEach(function (entry) {
+                        const key = entry.label || 'Water';
+                        if (!bevMap[key]) bevMap[key] = { amount: 0, icon: entry.icon || '💧' };
+                        bevMap[key].amount += Number(entry.amount) || 0;
+                    });
+                }
+
+                const completionPct = Math.min(100, Math.round((weekTotalMl / (appState.dailyGoal * 7)) * 100));
+                const rateEl = document.getElementById('insight-completion-rate');
+                const totalWeekEl = document.getElementById('stat-total-week');
+                const goalsHitEl = document.getElementById('stat-goals-hit');
+                const bevListEl = document.getElementById('beverage-breakdown-list');
+
+                if (rateEl) rateEl.textContent = completionPct + '%';
+                if (totalWeekEl) totalWeekEl.textContent = (weekTotalMl / 1000).toFixed(1) + ' L';
+                if (goalsHitEl) goalsHitEl.textContent = goalsHit + ' / 7 days';
+
+                if (bevListEl) {
+                    const keys = Object.keys(bevMap);
+                    if (keys.length === 0) {
+                        bevListEl.innerHTML = '<p class="text-slate-400 text-xs py-2">No drinks logged this week yet.</p>';
+                    } else {
+                        bevListEl.innerHTML = keys.map(function (k) {
+                            const item = bevMap[k];
+                            const pct = weekTotalMl > 0 ? Math.round((item.amount / weekTotalMl) * 100) : 0;
+                            return '<div class="flex items-center justify-between py-1">' +
+                                '<span class="font-bold text-slate-700 dark:text-slate-200">' + item.icon + ' ' + k + '</span>' +
+                                '<span class="font-display font-extrabold text-ocean-600 dark:text-ocean-400">' + item.amount + ' ml (' + pct + '%)</span>' +
+                                '</div>';
+                        }).join('');
+                    }
+                }
+            }
+
+            function renderDashboard() {
+                renderWeekSelector();
+                renderOrbAndSipStats();
+                renderHourlyGraph();
+                renderWeeklyChart();
+                renderLogHistory();
+                renderAnalyticsView();
+                updateReminderStatusUI();
+                updatePwaInstallUI();
+            }
+
+            function selectDay(dayIdx) {
+                if (dayIdx < 0 || dayIdx > 6) return;
+                appState.selectedDayIndex = dayIdx;
+                renderDashboard();
+            }
+
+            function spawnOrbSipEffects(event) {
+                const orbSurface = document.getElementById('water-orb-surface');
+                const fxLayer = document.getElementById('orb-fx-layer');
+                if (!orbSurface || !fxLayer) return;
+
+                const rect = orbSurface.getBoundingClientRect();
+                let x = rect.width / 2;
+                let y = rect.height / 2;
+
+                if (event && typeof event.clientX === 'number' && event.clientX > 0) {
+                    x = event.clientX - rect.left;
+                    y = event.clientY - rect.top;
+                }
+
+                const ripple = document.createElement('div');
+                ripple.className = 'tap-ripple w-16 h-16';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                fxLayer.appendChild(ripple);
+
+                const badge = document.createElement('div');
+                badge.className = 'floating-sip-badge px-2.5 py-1 rounded-full bg-ocean-600 text-white font-display font-extrabold text-xs shadow-lg';
+                badge.style.left = x + 'px';
+                badge.style.top = y + 'px';
+                badge.textContent = '+20ml 💧';
+                fxLayer.appendChild(badge);
+
+                orbSurface.classList.remove('orb-surge');
+                void orbSurface.offsetWidth;
+                orbSurface.classList.add('orb-surge');
+
+                setTimeout(function () {
+                    ripple.remove();
+                    badge.remove();
+                }, 900);
+            }
+
+            function handleOrbSipTap(event) {
+                spawnOrbSipEffects(event);
+                logWater(SIP_VOLUME_ML, 'Quick Sip', '💧', true);
+            }
+
+            function triggerQuickSipFromFab(event) {
+                spawnOrbSipEffects(null);
+                logWater(SIP_VOLUME_ML, 'Quick Sip', '💧', true);
+            }
+
+            function quickAddToSelectedHour(amount) {
+                const h = typeof appState.selectedHourSlot === 'number' ? appState.selectedHourSlot : new Date().getHours();
+                logWater(amount || 250, 'Hourly Log', '🥛', false, h);
+            }
+
+            function populateCustomHourSelect() {
+                const selectEl = document.getElementById('custom-hour-select');
+                if (!selectEl) return;
+                const currentHour = new Date().getHours();
+                let html = '';
+                for (let h = 0; h < 24; h++) {
+                    const selectedAttr = h === currentHour ? ' selected' : '';
+                    html += '<option value="' + h + '"' + selectedAttr + '>' + formatHourRangeLabel(h) + (h === currentHour ? ' (Now)' : '') + '</option>';
+                }
+                selectEl.innerHTML = html;
+            }
+
+            function openCustomModal() {
+                populateCustomHourSelect();
+                const modal = document.getElementById('custom-modal');
+                if (modal) modal.classList.add('is-open');
+            }
+
+            function closeCustomModal() {
+                const modal = document.getElementById('custom-modal');
+                if (modal) modal.classList.remove('is-open');
+            }
+
+            function syncCustomSlider(val) {
+                const num = Number(val) || 300;
+                const slider = document.getElementById('custom-range-input');
+                const label = document.getElementById('custom-slider-val');
+                if (slider) slider.value = num;
+                if (label) label.textContent = num;
+            }
+
+            function selectBeverage(label, icon) {
+                customBeverage = { label: label, icon: icon };
+                const btns = document.querySelectorAll('.bev-btn');
+                btns.forEach(function (btn) {
+                    if (btn.getAttribute('data-bev') === label) {
+                        btn.className = 'bev-btn btn-press p-2.5 rounded-2xl border-2 border-ocean-500 bg-ocean-50/60 dark:bg-ocean-950/60 text-xs font-bold flex flex-col items-center gap-1';
+                    } else {
+                        btn.className = 'bev-btn btn-press p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-semibold flex flex-col items-center gap-1';
+                    }
+                });
+            }
+
+            function submitCustomWater() {
+                const slider = document.getElementById('custom-range-input');
+                const hourSelect = document.getElementById('custom-hour-select');
+                const amount = slider ? Number(slider.value) : 300;
+                const chosenHour = hourSelect ? Number(hourSelect.value) : new Date().getHours();
+                closeCustomModal();
+                logWater(amount, customBeverage.label, customBeverage.icon, false, chosenHour);
+            }
+
+            function openGoalModal() {
+                setQuickGoal(appState.dailyGoal);
+                const modal = document.getElementById('goal-modal');
+                if (modal) modal.classList.add('is-open');
+            }
+
+            function closeGoalModal() {
+                const modal = document.getElementById('goal-modal');
+                if (modal) modal.classList.remove('is-open');
+            }
+
+            function setQuickGoal(val) {
+                const num = Number(val) || 2500;
+                const display = document.getElementById('goal-modal-display');
+                const slider = document.getElementById('goal-range-input');
+                if (display) display.textContent = num;
+                if (slider) slider.value = num;
+            }
+
+            function saveDailyGoal() {
+                const slider = document.getElementById('goal-range-input');
+                appState.dailyGoal = slider ? Number(slider.value) : 2500;
+                saveState();
+                closeGoalModal();
+                renderDashboard();
+                showToast('Daily goal updated to ' + appState.dailyGoal + 'ml', '🎯');
+            }
+
+            function syncReminderModalUI() {
+                const toggleBtn = document.getElementById('reminder-toggle-switch');
+                const knob = document.getElementById('reminder-toggle-knob');
+                if (toggleBtn && knob) {
+                    if (appState.reminderEnabled) {
+                        toggleBtn.className = 'btn-press w-12 h-7 flex items-center rounded-full p-1 transition-colors duration-300 bg-ocean-600';
+                        knob.className = 'bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 translate-x-5';
+                    } else {
+                        toggleBtn.className = 'btn-press w-12 h-7 flex items-center rounded-full p-1 transition-colors duration-300 bg-slate-300 dark:bg-slate-700';
+                        knob.className = 'bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 translate-x-0';
+                    }
+                }
+
+                const threshBtns = document.querySelectorAll('.thresh-btn');
+                threshBtns.forEach(function (btn) {
+                    const mins = Number(btn.getAttribute('data-mins'));
+                    if (mins === appState.reminderThresholdMins) {
+                        btn.className = 'thresh-btn btn-press py-2.5 px-2 rounded-2xl border-2 border-ocean-500 bg-ocean-50 dark:bg-ocean-950/60 text-ocean-700 dark:text-ocean-300 text-xs font-extrabold transition';
+                    } else {
+                        btn.className = 'thresh-btn btn-press py-2.5 px-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold transition';
+                    }
+                });
+
+                const notifBtn = document.getElementById('browser-notif-btn');
+                const notifStatus = document.getElementById('browser-notif-status');
+                if ('Notification' in window && notifBtn && notifStatus) {
+                    if (Notification.permission === 'granted') {
+                        notifBtn.textContent = 'Enabled ✓';
+                        notifStatus.textContent = 'Native system tray notifications active';
+                    } else if (Notification.permission === 'denied') {
+                        notifBtn.textContent = 'Blocked';
+                        notifStatus.textContent = 'Check browser site permissions to allow';
+                    }
+                }
+            }
+
+            function openReminderModal() {
+                syncReminderModalUI();
+                const modal = document.getElementById('reminder-modal');
+                if (modal) modal.classList.add('is-open');
+            }
+
+            function closeReminderModal() {
+                const modal = document.getElementById('reminder-modal');
+                if (modal) modal.classList.remove('is-open');
+            }
+
+            function toggleReminderEnabled() {
+                appState.reminderEnabled = !appState.reminderEnabled;
+                saveState();
+                syncReminderModalUI();
+                updateReminderStatusUI();
+            }
+
+            function selectReminderThreshold(mins) {
+                appState.reminderThresholdMins = Number(mins) || 60;
+                appState.reminderEnabled = true;
+                saveState();
+                syncReminderModalUI();
+                updateReminderStatusUI();
+                showToast('Inactivity alert set to ' + appState.reminderThresholdMins + ' mins', '🔔');
+            }
+
+            function requestBrowserNotificationPermission() {
+                if (!('Notification' in window)) {
+                    showToast('Notifications not supported in this browser', 'ℹ️');
+                    return;
+                }
+                Notification.requestPermission().then(function (perm) {
+                    syncReminderModalUI();
+                    if (perm === 'granted') {
+                        sendNativeSystemNotification('HydroFlow Alerts Enabled 💧', 'You will now receive native hydration reminders!');
+                        showToast('Native notifications enabled!', '🔔');
+                    } else {
+                        showToast('Notification permission: ' + perm, 'ℹ️');
+                    }
+                });
+            }
+
+            function openPwaModal() {
+                updatePwaInstallUI();
+                const modal = document.getElementById('pwa-modal');
+                if (modal) modal.classList.add('is-open');
+            }
+
+            function closePwaModal() {
+                const modal = document.getElementById('pwa-modal');
+                if (modal) modal.classList.remove('is-open');
+            }
+
+            function triggerNativeInstallPrompt() {
+                if (deferredInstallPrompt) {
+                    deferredInstallPrompt.prompt();
+                    deferredInstallPrompt.userChoice.then(function () {
+                        deferredInstallPrompt = null;
+                        updatePwaInstallUI();
+                    });
+                } else {
+                    showToast('In Chrome menu (⋮), tap "Add to Home screen" or "Install app"', '📲');
+                }
+            }
+
+            function sendTestNativeNotification() {
+                if ('Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission().then(function () {
+                        triggerTestInactivityAlert();
+                    });
+                } else {
+                    triggerTestInactivityAlert();
+                }
+            }
+
+            function switchTab(tabName) {
+                appState.activeTab = tabName;
+                const views = ['dashboard', 'analytics', 'history'];
+                views.forEach(function (v) {
+                    const viewEl = document.getElementById('view-' + v);
+                    const btnEl = document.getElementById('tab-btn-' + v);
+                    if (viewEl) viewEl.classList.toggle('hidden', v !== tabName);
+                    if (btnEl) {
+                        btnEl.className = v === tabName
+                            ? 'btn-press flex flex-col items-center gap-1 text-ocean-600 dark:text-ocean-400 font-bold text-[11px]'
+                            : 'btn-press flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 font-semibold text-[11px]';
+                    }
+                });
+                renderDashboard();
+            }
+
+            function applyTheme() {
+                const root = document.documentElement;
+                if (appState.darkMode) {
+                    root.classList.add('dark');
+                    root.classList.remove('light');
+                } else {
+                    root.classList.remove('dark');
+                    root.classList.add('light');
+                }
+            }
+
+            function toggleTheme() {
+                appState.darkMode = !appState.darkMode;
+                applyTheme();
+                saveState();
+            }
+
+            function updateSoundIcons() {
+                const onIcon = document.getElementById('sound-on-icon');
+                const offIcon = document.getElementById('sound-off-icon');
+                if (onIcon && offIcon) {
+                    onIcon.classList.toggle('hidden', !appState.soundEnabled);
+                    offIcon.classList.toggle('hidden', appState.soundEnabled);
+                }
+            }
+
+            function toggleSound() {
+                appState.soundEnabled = !appState.soundEnabled;
+                updateSoundIcons();
+                saveState();
+                showToast(appState.soundEnabled ? 'Sound effects ON' : 'Sound effects muted', appState.soundEnabled ? '🔊' : '🔇');
+            }
+
+            // Direct 1-Click File Downloader for index.html, manifest.json, and sw.js
+            function downloadSourceFile(filename) {
+                let content = '';
+                let mime = 'text/plain;charset=utf-8';
+
+                if (filename === 'manifest.json') {
+                    mime = 'application/json;charset=utf-8';
+                    content = JSON.stringify({
+                        name: 'HydroFlow - Daily Water Tracker',
+                        short_name: 'HydroFlow',
+                        description: 'Interactive daily water habit tracker with +20ml quick-sip orb, hourly intake graph, and smart hydration alerts.',
+                        start_url: './index.html',
+                        scope: './',
+                        display: 'standalone',
+                        orientation: 'portrait',
+                        background_color: '#0f172a',
+                        theme_color: '#0284c7',
+                        icons: [
+                            {
+                                src: 'https://cdn-icons-png.flaticon.com/512/3105/3105807.png',
+                                sizes: '512x512',
+                                type: 'image/png',
+                                purpose: 'any maskable'
+                            }
+                        ]
+                    }, null, 2);
+                } else if (filename === 'sw.js') {
+                    mime = 'application/javascript;charset=utf-8';
+                    content = [
+                        "const CACHE_NAME = 'hydroflow-pwa-v1';",
+                        "const ASSETS = ['./', './index.html', './manifest.json'];",
+                        "self.addEventListener('install', (event) => {",
+                        "  self.skipWaiting();",
+                        "  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).catch(() => {}));",
+                        "});",
+                        "self.addEventListener('activate', (event) => {",
+                        "  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))).then(() => self.clients.claim()));",
+                        "});",
+                        "self.addEventListener('fetch', (event) => {",
+                        "  if (event.request.method !== 'GET') return;",
+                        "  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));",
+                        "});",
+                        "self.addEventListener('notificationclick', (event) => {",
+                        "  event.notification.close();",
+                        "  const action = event.action || 'open';",
+                        "  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {",
+                        "    for (const client of clientList) {",
+                        "      if ('focus' in client) {",
+                        "        client.postMessage({ type: 'NOTIFICATION_ACTION', action });",
+                        "        return client.focus();",
+                        "      }",
+                        "    }",
+                        "    if (self.clients.openWindow) return self.clients.openWindow('./index.html');",
+                        "  }));",
+                        "});"
+                    ].join('\n');
+                } else {
+                    mime = 'text/html;charset=utf-8';
+                    content = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+                }
+
+                const blob = new Blob([content], { type: mime });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 200);
+                showToast('Downloading ' + filename + '...', '⬇️');
+            }
+
+            /* ==========================================
+               USER ACTIONS & RESET ALL MODAL
+               ========================================== */
+            function logWater(amount, label, icon, isQuickSip, customHour) {
+                const selIdx = appState.selectedDayIndex;
+                const prevTotal = getDayTotal(selIdx);
+
+                const now = new Date();
+                const entryHour = (typeof customHour === 'number' && !isNaN(customHour) && customHour >= 0 && customHour <= 23)
+                    ? customHour
+                    : now.getHours();
+
+                const timeStr = (typeof customHour === 'number' && customHour !== now.getHours())
+                    ? formatHourLabel(entryHour, false)
+                    : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                if (!Array.isArray(appState.weekLogs[selIdx])) {
+                    appState.weekLogs[selIdx] = [];
+                }
+
+                appState.weekLogs[selIdx].push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    amount: Number(amount),
+                    label: label || 'Water',
+                    icon: icon || '💧',
+                    time: timeStr,
+                    hour: entryHour
+                });
+
+                appState.lastSipTimestamp = Date.now();
+                appState.snoozedUntilTimestamp = 0;
+                appState.selectedHourSlot = entryHour;
+                dismissInactivityAlert();
+
+                const newTotal = getDayTotal(selIdx);
+                const crossedGoal = prevTotal < appState.dailyGoal && newTotal >= appState.dailyGoal;
+
+                saveState();
+                renderDashboard();
+                playWaterSound(crossedGoal, Boolean(isQuickSip), false);
+
+                if (crossedGoal) {
+                    showToast('🎉 Goal reached on ' + FULL_DAY_NAMES[selIdx] + '!', '🏆');
+                } else {
+                    showToast('Added +' + amount + 'ml (' + (label || 'Water') + ')', icon || '💧');
+                }
+            }
+
+            function recalculateLastSipTimestamp() {
+                const anyLogs = appState.weekLogs.some(function (dayArr) {
+                    return Array.isArray(dayArr) && dayArr.length > 0;
+                });
+                if (!anyLogs) {
+                    appState.lastSipTimestamp = null;
+                }
+            }
+
+            function undoLastEntry() {
+                const selIdx = appState.selectedDayIndex;
+                const logs = appState.weekLogs[selIdx];
+                if (!logs || logs.length === 0) return;
+
+                const removed = logs.pop();
+                recalculateLastSipTimestamp();
+                saveState();
+                renderDashboard();
+                showToast('Removed ' + removed.amount + 'ml entry', '↩️');
+            }
+
+            function deleteLogEntry(entryId) {
+                const selIdx = appState.selectedDayIndex;
+                appState.weekLogs[selIdx] = (appState.weekLogs[selIdx] || []).filter(function (item) {
+                    return item.id !== entryId;
+                });
+                recalculateLastSipTimestamp();
+                saveState();
+                renderDashboard();
+                showToast('Entry removed', '🗑️');
+            }
+
+            function clearDayLogs() {
+                const selIdx = appState.selectedDayIndex;
+                appState.weekLogs[selIdx] = [];
+                recalculateLastSipTimestamp();
+                saveState();
+                renderDashboard();
+                showToast('Cleared ' + FULL_DAY_NAMES[selIdx] + "'s logs", '🧹');
+            }
+
+            function openResetModal() {
+                const modal = document.getElementById('reset-modal');
+                if (modal) modal.classList.add('is-open');
+            }
+
+            function closeResetModal() {
+                const modal = document.getElementById('reset-modal');
+                if (modal) modal.classList.remove('is-open');
+            }
+
+            function confirmResetAllData() {
+                purgeLegacyDemoStorage();
+                appState.weekLogs = createEmptyWeekLogs();
+                appState.selectedDayIndex = getTodayIndex();
+                appState.selectedHourSlot = new Date().getHours();
+                appState.lastSipTimestamp = null;
+                appState.snoozedUntilTimestamp = 0;
+                dismissInactivityAlert();
+                saveState();
+                closeResetModal();
+                renderDashboard();
+                switchTab('dashboard');
+                showToast('All hydration data reset to 0 ml', '🗑️');
+            }
+
+            /* ==========================================
+               EXPOSE GLOBAL HANDLERS FOR INLINE ONCLICK
+               ========================================== */
+            window.appGetTodayIndex = getTodayIndex;
+            window.appSelectDay = selectDay;
+            window.appHandleOrbSipTap = handleOrbSipTap;
+            window.appTriggerQuickSipFromFab = triggerQuickSipFromFab;
+            window.appLogWater = logWater;
+            window.appQuickAddToSelectedHour = quickAddToSelectedHour;
+            window.appUndoLastEntry = undoLastEntry;
+            window.appDeleteLogEntry = deleteLogEntry;
+            window.appClearDayLogs = clearDayLogs;
+            window.appSetHourlyGraphMode = function (mode) {
+                appState.hourlyGraphMode = mode === 'all' ? 'all' : 'waking';
+                saveState();
+                renderHourlyGraph();
+            };
+            window.appSelectHourBar = function (hour24) {
+                appState.selectedHourSlot = Number(hour24);
+                renderHourlyGraph();
+            };
+            window.appOpenCustomModal = openCustomModal;
+            window.appCloseCustomModal = closeCustomModal;
+            window.appSyncCustomSlider = syncCustomSlider;
+            window.appSelectBeverage = selectBeverage;
+            window.appSubmitCustomWater = submitCustomWater;
+            window.appOpenGoalModal = openGoalModal;
+            window.appCloseGoalModal = closeGoalModal;
+            window.appSetQuickGoal = setQuickGoal;
+            window.appSaveDailyGoal = saveDailyGoal;
+            window.appOpenReminderModal = openReminderModal;
+            window.appCloseReminderModal = closeReminderModal;
+            window.appToggleReminderEnabled = toggleReminderEnabled;
+            window.appSelectReminderThreshold = selectReminderThreshold;
+            window.appRequestBrowserNotificationPermission = requestBrowserNotificationPermission;
+            window.appTriggerTestInactivityAlert = triggerTestInactivityAlert;
+            window.appDismissInactivityAlert = dismissInactivityAlert;
+            window.appSnoozeInactivityAlert = snoozeInactivityAlert;
+            window.appResolveAlertWithDrink = resolveAlertWithDrink;
+            window.appOpenPwaModal = openPwaModal;
+            window.appClosePwaModal = closePwaModal;
+            window.appTriggerNativeInstallPrompt = triggerNativeInstallPrompt;
+            window.appSendTestNativeNotification = sendTestNativeNotification;
+            window.appSwitchTab = switchTab;
+            window.appToggleTheme = toggleTheme;
+            window.appToggleSound = toggleSound;
+            window.appOpenResetModal = openResetModal;
+            window.appCloseResetModal = closeResetModal;
+            window.appConfirmResetAllData = confirmResetAllData;
+            window.appResetAllData = openResetModal;
+            window.appDownloadSourceFile = downloadSourceFile;
+
+            /* ==========================================
+               INITIALIZATION
+               ========================================== */
+            function initApp() {
+                initPwaAndServiceWorker();
+                loadState();
+                renderDashboard();
+                setInterval(function () {
+                    updateReminderStatusUI();
+                }, 15000);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initApp);
+            } else {
+                initApp();
+            }
+        })();
+    </script>
+</body>
+</html>
